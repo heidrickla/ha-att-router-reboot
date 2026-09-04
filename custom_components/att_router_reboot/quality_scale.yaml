@@ -1,0 +1,124 @@
+rules:
+  # Bronze
+  action-setup:
+    status: done
+    comment: The reboot action is registered in async_setup, not per entry.
+  appropriate-polling:
+    status: done
+    comment: |
+      Two-minute poll of an unauthenticated status page. Uptime and WAN state
+      do not move faster than that, and the gateway is doing real routing work.
+  brands:
+    status: exempt
+    comment: |
+      A custom integration is not in the Home Assistant brands repository. The
+      icon falls back to the default until it is (if it ever is) submitted.
+  common-modules: done
+  config-flow-test-coverage:
+    status: done
+    comment: |
+      tests/ha/test_config_flow.py covers the user step, all three error
+      mappings, the duplicate abort, reconfigure with its another_gateway
+      guard, reauth and the options flow. Run in CI on the self-hosted runner.
+  config-flow: done
+  dependency-transparency:
+    status: exempt
+    comment: |
+      No external dependency. requirements is empty; the client is aiohttp
+      (already in Home Assistant) plus the standard library.
+  docs-actions: done
+  docs-conditions:
+    status: exempt
+    comment: This integration provides no conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: This integration provides no triggers.
+  entity-event-setup:
+    status: done
+    comment: |
+      Entities are coordinator-driven; CoordinatorEntity subscribes in
+      async_added_to_hass and unsubscribes on removal. None manage a
+      subscription of their own beyond that.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable:
+    status: done
+    comment: The coordinator logs an unreachable gateway once, via UpdateFailed.
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage:
+    status: done
+    comment: |
+      The parser and client have pure tests against real BGW320-500 HTML; the
+      Home Assistant layer covers setup, entities, the button, the action and
+      the schedule guard. Both suites run in CI.
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: |
+      The gateway is at a well-known fixed address the user confirms; there is
+      no discovery protocol to key on that would not also match unrelated hosts.
+  discovery-update-info:
+    status: exempt
+    comment: No discovery, so nothing to update from it.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: A single fixed device - the one gateway the entry configures.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: exempt
+    comment: |
+      The handful of entities are all useful on a device whose whole reason for
+      being added is to watch and reboot it; none are noisy enough to disable.
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: |
+      Authentication failure raises a reauth flow. No other recoverable
+      condition needs a repair issue rather than ordinary unavailability.
+  stale-devices:
+    status: exempt
+    comment: A single fixed device that is removed with the entry.
+
+  # Platinum
+  async-dependency:
+    status: exempt
+    comment: No external dependency; all work is aiohttp on the event loop.
+  inject-websession:
+    status: exempt
+    comment: |
+      A DEDICATED aiohttp session is used, not the shared helper, so the
+      gateway's per-login SessionID cookie is isolated from every other
+      integration. The session is still injected into the client (owned and
+      closed by __init__.py), but it is deliberately not the shared one the
+      rule points at.
+  strict-typing: done

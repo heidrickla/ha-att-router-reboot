@@ -1,0 +1,15 @@
+{
+  "domain": "att_router_reboot",
+  "name": "AT&T Router Reboot",
+  "version": "0.1.0",
+  "documentation": "https://github.com/heidrickla/ha-att-router-reboot",
+  "issue_tracker": "https://github.com/heidrickla/ha-att-router-reboot/issues",
+  "codeowners": [
+    "@heidrickla"
+  ],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "integration_type": "device",
+  "requirements": [],
+  "single_config_entry": true
+}

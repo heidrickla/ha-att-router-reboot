@@ -1,0 +1,8 @@
+# The action's name and description live in strings.json (the translatable
+# layer); this file carries only structure.
+reboot:
+  fields:
+    entry_id:
+      required: false
+      selector:
+        text:

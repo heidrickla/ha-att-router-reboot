@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AT&T Gateway",
+        "description": "Connect to your AT&T residential gateway on the local network.",
+        "data": {
+          "host": "Host",
+          "access_code": "Device access code",
+          "verify_ssl": "Verify the gateway's certificate"
+        },
+        "data_description": {
+          "host": "The gateway's LAN address. Usually 192.168.1.254.",
+          "access_code": "The device access code printed on the label on the gateway, used to log in to its web interface.",
+          "verify_ssl": "Leave off unless you have installed your own trusted certificate on the gateway; it ships a self-signed one."
+        }
+      },
+      "reconfigure": {
+        "title": "AT&T Gateway",
+        "description": "Change the gateway's address or access code.",
+        "data": {
+          "host": "Host",
+          "access_code": "Device access code",
+          "verify_ssl": "Verify the gateway's certificate"
+        },
+        "data_description": {
+          "host": "The gateway's LAN address. Usually 192.168.1.254.",
+          "access_code": "The device access code printed on the label on the gateway.",
+          "verify_ssl": "Leave off unless you have installed your own trusted certificate on the gateway."
+        }
+      },
+      "reauth_confirm": {
+        "title": "AT&T Gateway",
+        "description": "The access code for the gateway at {host} was rejected. Enter it again.",
+        "data": {
+          "access_code": "Device access code"
+        },
+        "data_description": {
+          "access_code": "The device access code printed on the label on the gateway."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The access code was rejected.",
+      "cannot_connect": "Could not reach the gateway at that address.",
+      "unknown": "Unexpected error talking to the gateway."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured.",
+      "another_gateway": "That address answers as a different gateway than this entry was set up for.",
+      "reconfigure_successful": "The gateway was reconfigured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Automatic reboot schedule",
+        "description": "Optionally reboot the gateway on a schedule. The button and the reboot action stay available regardless. A scheduled reboot is skipped if the gateway has only just come up.",
+        "data": {
+          "schedule": "Schedule",
+          "schedule_time": "Time of day",
+          "schedule_weekday": "Day of week"
+        },
+        "data_description": {
+          "schedule": "How often to reboot automatically. Off leaves rebooting entirely to the button, the action, or your own automations.",
+          "schedule_time": "Local time at which the reboot runs.",
+          "schedule_weekday": "Used only for a weekly schedule."
+        }
+      }
+    }
+  },
+  "selector": {
+    "schedule": {
+      "options": {
+        "off": "Off",
+        "daily": "Daily",
+        "weekly": "Weekly"
+      }
+    },
+    "weekday": {
+      "options": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "reboot": {
+        "name": "Reboot"
+      }
+    },
+    "sensor": {
+      "uptime": {
+        "name": "Uptime"
+      },
+      "wan_ip": {
+        "name": "WAN IP address"
+      },
+      "line_rate": {
+        "name": "Line rate"
+      },
+      "rx_bytes": {
+        "name": "Downstream data"
+      },
+      "tx_bytes": {
+        "name": "Upstream data"
+      },
+      "rx_errors": {
+        "name": "Receive errors"
+      },
+      "tx_errors": {
+        "name": "Transmit errors"
+      }
+    },
+    "binary_sensor": {
+      "reachable": {
+        "name": "Reachable"
+      },
+      "wan_connected": {
+        "name": "Internet connection"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "The AT&T Router Reboot integration is not loaded, so this action cannot run."
+    },
+    "auth_failed": {
+      "message": "The gateway rejected the access code: {error}"
+    },
+    "reboot_failed": {
+      "message": "The reboot could not be sent to the gateway: {error}"
+    }
+  },
+  "services": {
+    "reboot": {
+      "name": "Reboot gateway",
+      "description": "Reboots the AT&T gateway now."
+    }
+  }
+}
