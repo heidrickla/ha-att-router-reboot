@@ -4,6 +4,8 @@ from datetime import timedelta
 
 DOMAIN = "att_router_reboot"
 MANUFACTURER = "AT&T"
+# Kept equal to manifest.json's version; tools/validate_local.py checks.
+VERSION = "0.1.0"
 
 CONF_ACCESS_CODE = "access_code"
 CONF_VERIFY_SSL = "verify_ssl"

@@ -1,6 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+extend-exclude = ["custom_components/att_router_reboot/brand"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
@@ -9,10 +10,19 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 # The test file is a linear check script rather than a module.
 "tests/*" = ["S101", "E501"]
 
-# Home Assistant runs mypy in strict mode over integrations claiming the
-# strict-typing rule.
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+# `strict-typing` is the Platinum rule with teeth: Home Assistant runs mypy in
+# strict mode over integrations that claim it. Nothing below relaxes strict.
+# Without Home Assistant installed every class it exports is Any, so a local
+# run reports a handful of "subclassing Any" and "returning Any" lines that
+# are artefacts of the missing install; the CI job, which installs Home
+# Assistant, is the run that counts.
 [tool.mypy]
-python_version = "3.13"
+# Home Assistant 2026.x is written for 3.14; a lower target makes mypy stop at
+# its own source before it reaches this integration.
+python_version = "3.14"
 strict = true
 warn_return_any = true
 disallow_untyped_defs = true
@@ -20,18 +30,8 @@ disallow_any_generics = true
 no_implicit_reexport = true
 ignore_missing_imports = true
 follow_imports = "silent"
-# Relaxed only because Home Assistant is not installed here: without it every
-# class it exports is Any, so subclassing Entity reads as subclassing Any and
-# @callback reads as an untyped decorator.
-disallow_subclassing_any = false
-disallow_untyped_decorators = false
-warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
 module = "tests.*"
 strict = false
 disallow_untyped_defs = false
-
-[tool.pytest.ini_options]
-
-asyncio_mode = "auto"
