@@ -13,14 +13,9 @@ from custom_components.att_router_reboot.const import (
     SCHEDULE_WEEKLY,
     WEEKDAYS,
 )
-from custom_components.att_router_reboot.models import BroadbandStats, GatewayData
+from custom_components.att_router_reboot.models import GatewayData
 
-UPTIME = "custom_components.att_router_reboot.api.AttRouterClient.async_get_uptime"
-MODEL = "custom_components.att_router_reboot.api.AttRouterClient.async_get_model"
-BROADBAND = (
-    "custom_components.att_router_reboot.api.AttRouterClient.async_get_broadband"
-)
-REBOOT = "custom_components.att_router_reboot.api.AttRouterClient.async_reboot"
+from .conftest import REBOOT
 
 
 def _next_local(hour: int, minute: int) -> datetime:
@@ -36,16 +31,12 @@ def _next_local(hour: int, minute: int) -> datetime:
     return target
 
 
-async def _setup(hass, entry, options, uptime):
+async def _setup(hass, entry, gateway, options, uptime):
     entry.add_to_hass(hass)
     hass.config_entries.async_update_entry(entry, options=options)
-    with (
-        patch(UPTIME, return_value=uptime),
-        patch(MODEL, return_value={}),
-        patch(BROADBAND, return_value=BroadbandStats(connection_up=True)),
-    ):
-        await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    gateway.uptime.return_value = uptime
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
 
 
 async def _fire_at(hass, when: datetime) -> None:
@@ -57,26 +48,30 @@ async def _fire_at(hass, when: datetime) -> None:
     await hass.async_block_till_done()
 
 
-async def test_a_daily_schedule_reboots_when_up_long_enough(hass, config_entry):
+async def test_a_daily_schedule_reboots_when_up_long_enough(
+    hass, config_entry, gateway
+):
     await _setup(
         hass,
         config_entry,
+        gateway,
         {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
         uptime=7200,
     )
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=1):
+    with patch(REBOOT, AsyncMock()) as reboot:
         await _fire_at(hass, _next_local(4, 0))
     reboot.assert_awaited_once()
 
 
 async def test_a_scheduled_reboot_is_skipped_on_a_just_booted_gateway(
-    hass, config_entry
+    hass, config_entry, gateway
 ):
     """The loop guard: a schedule firing right after a reboot must not
     power-cycle the house's only internet again."""
     await _setup(
         hass,
         config_entry,
+        gateway,
         {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
         uptime=60,
     )
@@ -85,11 +80,12 @@ async def test_a_scheduled_reboot_is_skipped_on_a_just_booted_gateway(
     reboot.assert_not_awaited()
 
 
-async def test_a_weekly_schedule_fires_on_its_day(hass, config_entry):
+async def test_a_weekly_schedule_fires_on_its_day(hass, config_entry, gateway):
     fire = _next_local(4, 0)
     await _setup(
         hass,
         config_entry,
+        gateway,
         {
             CONF_SCHEDULE: SCHEDULE_WEEKLY,
             CONF_SCHEDULE_TIME: "04:00:00",
@@ -97,17 +93,18 @@ async def test_a_weekly_schedule_fires_on_its_day(hass, config_entry):
         },
         uptime=7200,
     )
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=1):
+    with patch(REBOOT, AsyncMock()) as reboot:
         await _fire_at(hass, fire)
     reboot.assert_awaited_once()
 
 
-async def test_a_weekly_schedule_ignores_the_wrong_day(hass, config_entry):
+async def test_a_weekly_schedule_ignores_the_wrong_day(hass, config_entry, gateway):
     fire = _next_local(4, 0)
     wrong = WEEKDAYS[(fire.weekday() + 1) % 7]
     await _setup(
         hass,
         config_entry,
+        gateway,
         {
             CONF_SCHEDULE: SCHEDULE_WEEKLY,
             CONF_SCHEDULE_TIME: "04:00:00",
@@ -121,7 +118,7 @@ async def test_a_weekly_schedule_ignores_the_wrong_day(hass, config_entry):
 
 
 async def test_a_failing_scheduled_reboot_is_logged_not_raised(
-    hass, config_entry, caplog
+    hass, config_entry, gateway, caplog
 ):
     """A timer has no caller to report to; the failure must not escape."""
     from custom_components.att_router_reboot.api import AttRouterError
@@ -129,6 +126,7 @@ async def test_a_failing_scheduled_reboot_is_logged_not_raised(
     await _setup(
         hass,
         config_entry,
+        gateway,
         {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
         uptime=7200,
     )
@@ -137,7 +135,9 @@ async def test_a_failing_scheduled_reboot_is_logged_not_raised(
     assert "Scheduled reboot failed" in caplog.text
 
 
-async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(hass, config_entry):
+async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(
+    hass, config_entry, gateway
+):
     from homeassistant.config_entries import SOURCE_REAUTH
 
     from custom_components.att_router_reboot.api import AttRouterAuthError
@@ -145,6 +145,7 @@ async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(hass, config_
     await _setup(
         hass,
         config_entry,
+        gateway,
         {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
         uptime=7200,
     )
@@ -156,8 +157,10 @@ async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(hass, config_
     )
 
 
-async def test_no_timer_is_registered_when_the_schedule_is_off(hass, config_entry):
-    await _setup(hass, config_entry, {}, uptime=7200)
+async def test_no_timer_is_registered_when_the_schedule_is_off(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway, {}, uptime=7200)
     with patch(REBOOT, AsyncMock()) as reboot:
         await _fire_at(hass, _next_local(4, 0))
     reboot.assert_not_awaited()

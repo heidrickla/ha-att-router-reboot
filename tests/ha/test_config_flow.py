@@ -35,6 +35,17 @@ VERIFY = (
 )
 
 
+@pytest.fixture(autouse=True)
+def mock_setup_entry():
+    """These tests are about the flow; the setup it triggers is tested in
+    test_init and would otherwise reach for the gateway when the entry is
+    created or reloaded."""
+    with patch(
+        "custom_components.att_router_reboot.async_setup_entry", return_value=True
+    ):
+        yield
+
+
 def _access_code_field(result):
     for key in result["data_schema"].schema:
         if key == CONF_ACCESS_CODE:
