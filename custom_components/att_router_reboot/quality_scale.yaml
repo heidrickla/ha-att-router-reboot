@@ -2,30 +2,38 @@ rules:
   # Bronze
   action-setup:
     status: done
-    comment: The reboot action is registered in async_setup, not per entry.
+    comment: |
+      The reboot action is registered in async_setup, not per entry, so a call
+      while the entry is unloaded gets a translated refusal. It takes no
+      fields: the integration allows one entry.
   appropriate-polling:
     status: done
     comment: |
       Two-minute poll of an unauthenticated status page. Uptime and WAN state
       do not move faster than that, and the gateway is doing real routing work.
   brands:
-    status: exempt
+    status: done
     comment: |
-      A custom integration is not in the Home Assistant brands repository. The
-      icon falls back to the default until it is (if it ever is) submitted.
+      Brand images ship in-repo at custom_components/att_router_reboot/brand/
+      (generated and size-checked by tools/make_brand.py), which Home
+      Assistant serves since 2026.3; hacs.json carries that floor. A core
+      submission would add them to home-assistant/brands instead.
   common-modules: done
   config-flow-test-coverage:
     status: done
     comment: |
-      tests/ha/test_config_flow.py covers the user step, all three error
-      mappings, the duplicate abort, reconfigure with its another_gateway
-      guard, reauth and the options flow. Run in CI on the self-hosted runner.
+      tests/ha/test_config_flow.py covers the user step, each of the three
+      errors followed by recovery to CREATE_ENTRY, the single-instance abort,
+      reconfigure (success, blank code keeps the stored one, each error then
+      recovery, another gateway refused, no stored code on the form), reauth
+      (success, each error then recovery) and the options flow. Run by the
+      GitHub Tests workflow against Home Assistant 2026.8.3 on every push.
   config-flow: done
   dependency-transparency:
-    status: exempt
+    status: done
     comment: |
-      No external dependency. requirements is empty; the client is aiohttp
-      (already in Home Assistant) plus the standard library.
+      requirements is empty. The client is aiohttp (already in Home Assistant)
+      plus the standard library; there is nothing to be transparent about.
   docs-actions: done
   docs-conditions:
     status: exempt
@@ -45,40 +53,78 @@ rules:
   entity-unique-id: done
   has-entity-name: done
   runtime-data: done
-  test-before-configure: done
-  test-before-setup: done
-  unique-config-entry: done
+  test-before-configure:
+    status: done
+    comment: |
+      The flow logs in against the gateway and then insists on the restart
+      form as the proof (api.AttRouterClient._restart_form). The
+      cookies-disabled stub and a re-served login form both fail; a missing
+      password field alone is no longer read as success.
+  test-before-setup:
+    status: done
+    comment: |
+      async_config_entry_first_refresh raises ConfigEntryNotReady, carrying
+      the coordinator's translated UpdateFailed, while the gateway is
+      unreachable or serves a page the parser cannot read.
+  unique-config-entry:
+    status: done
+    comment: |
+      single_config_entry in the manifest; the host is also set as the unique
+      id so the reconfigure flow can refuse a different gateway.
 
   # Silver
-  action-exceptions: done
+  action-exceptions:
+    status: done
+    comment: |
+      Every reboot path goes through AttRouterCoordinator.async_reboot, which
+      raises a translated HomeAssistantError; the action raises a translated
+      ServiceValidationError while the entry is unloaded.
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
-  entity-unavailable: done
+  entity-unavailable:
+    status: done
+    comment: |
+      Coordinator failure marks everything unavailable except Reachable,
+      which stays available so the fault itself is visible.
   integration-owner: done
   log-when-unavailable:
     status: done
-    comment: The coordinator logs an unreachable gateway once, via UpdateFailed.
+    comment: |
+      DataUpdateCoordinator logs the unreachable gateway once when the poll
+      first fails and once at info when it recovers.
   parallel-updates: done
-  reauthentication-flow: done
-  test-coverage:
+  reauthentication-flow:
     status: done
     comment: |
-      The parser and client have pure tests against real BGW320-500 HTML; the
-      Home Assistant layer covers setup, entities, the button, the action and
-      the schedule guard. Both suites run in CI.
+      The access code is only used to reboot, so that is where a changed code
+      shows: AttRouterCoordinator.async_reboot starts the reauth flow on
+      AttRouterAuthError from the button, the action or the schedule.
+  test-coverage:
+    status: todo
+    comment: |
+      Coverage is measured by the GitHub Tests workflow (pytest-cov,
+      term-missing) but not yet gated at 95%; the gate lands once the first
+      measured number is known and any gaps are closed.
 
   # Gold
   devices: done
-  diagnostics: done
-  discovery:
-    status: exempt
+  diagnostics:
+    status: done
     comment: |
-      The gateway is at a well-known fixed address the user confirms; there is
-      no discovery protocol to key on that would not also match unrelated hosts.
+      Access code, host, serial, MAC and the WAN IPv4 address are redacted;
+      the poll data is converted with dataclasses.asdict first so the nested
+      address is reached.
+  discovery:
+    status: todo
+    comment: |
+      The gateway is at a well-known fixed address, but BGW-series gateways
+      advertise UPnP IGD over SSDP by default and that has not been measured
+      from a LAN host; an exemption cannot be claimed until it is. Implement
+      or exempt once measured; do not guess a service type.
   discovery-update-info:
-    status: exempt
-    comment: No discovery, so nothing to update from it.
+    status: todo
+    comment: Follows discovery.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -95,30 +141,59 @@ rules:
     status: exempt
     comment: |
       The handful of entities are all useful on a device whose whole reason for
-      being added is to watch and reboot it; none are noisy enough to disable.
+      being added is to watch and reboot it. The byte counters change every
+      poll, but core's fritz keeps its own enabled for the same reason: they
+      are what a router page is for.
   entity-translations: done
-  exception-translations: done
-  icon-translations: done
-  reconfiguration-flow: done
+  exception-translations:
+    status: done
+    comment: |
+      UpdateFailed, HomeAssistantError and ServiceValidationError are raised
+      with translation keys; ConfigEntryNotReady inherits the coordinator's.
+      tools/validate_local.py fails on any call without one.
+  icon-translations:
+    status: done
+    comment: |
+      Icons only for the entities whose device class supplies none: the WAN
+      address, the byte counters and the error counters. The reboot button,
+      uptime, line rate and both connectivity sensors take the device-class
+      icon.
+  reconfiguration-flow:
+    status: done
+    comment: |
+      Access code and certificate check can change in place; the stored code
+      is never sent back to the form and a blank keeps it. The unique id is
+      the host, so a gateway at a new address is another gateway and is
+      refused - documented in the README.
   repair-issues:
     status: exempt
     comment: |
-      Authentication failure raises a reauth flow. No other recoverable
-      condition needs a repair issue rather than ordinary unavailability.
+      Authentication failure starts the reauth flow (coordinator.async_reboot).
+      No other recoverable condition needs a repair issue rather than ordinary
+      unavailability.
   stale-devices:
     status: exempt
     comment: A single fixed device that is removed with the entry.
 
   # Platinum
   async-dependency:
-    status: exempt
-    comment: No external dependency; all work is aiohttp on the event loop.
-  inject-websession:
-    status: exempt
+    status: done
     comment: |
-      A DEDICATED aiohttp session is used, not the shared helper, so the
-      gateway's per-login SessionID cookie is isolated from every other
-      integration. The session is still injected into the client (owned and
-      closed by __init__.py), but it is deliberately not the shared one the
-      rule points at.
-  strict-typing: done
+      The client is asyncio on aiohttp, in-repo (api.py, parse.py and
+      models.py, free of Home Assistant imports). When it is lifted into a
+      PyPI package for a core submission it stays async.
+  inject-websession:
+    status: done
+    comment: |
+      async_create_clientsession, in setup and in the config flow, with
+      cookie_jar=aiohttp.CookieJar(unsafe=True): the rule's own case for a
+      session that must carry cookies. A dedicated session rather than the
+      shared one because the gateway's SessionID cookie must not leak into
+      other integrations' requests, and unsafe because the gateway is
+      addressed by IP and the default jar drops cookies from IP hosts.
+  strict-typing:
+    status: todo
+    comment: |
+      pyproject.toml runs mypy strict with no relaxations; the GitHub Tests
+      workflow runs it with Home Assistant 2026.8.3 installed, which is the
+      run that means something. Marked done once that run is green.
