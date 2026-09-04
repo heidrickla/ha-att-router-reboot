@@ -1,11 +1,9 @@
 name: Validate
 
-# Runs on a self-hosted Gitea act_runner. The GitHub copy of this workflow
-# (.github/workflows/validate.yml) runs every job on every push instead.
-#
-# THE RUNNER IS SHARED AND ITS CAPACITY IS 1. Other agent sessions queue behind
-# anything pushed here, so an ordinary push runs ONE fast job. Anything that
-# installs Home Assistant is workflow_dispatch only.
+# GitHub Actions mirror of .gitea/workflows/validate.yml. Public repositories
+# get hosted runners for free, so every job runs on every push here; the Gitea
+# copy keeps the heavy jobs behind workflow_dispatch because its runner is
+# shared.
 
 on:
   push:
@@ -18,33 +16,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
-      # Pinned: an unpinned linter makes CI non-reproducible, and this exact
-      # failure has already been paid for once on the sleepiq repo.
+      # Pinned: an unpinned linter makes CI non-reproducible.
       - name: Install ruff (PINNED)
         run: |
-          python3 -m pip install --quiet --upgrade pip
-          python3 -m pip install --quiet "ruff==0.15.21"
-          python3 -m ruff --version
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet "ruff==0.15.21"
+          python -m ruff --version
 
       - name: Ruff
         run: |
-          python3 -m ruff check .
-          python3 -m ruff format --check .
+          python -m ruff check .
+          python -m ruff format --check .
 
-      # No ast.parse step here on purpose. The runner image ships Python
-      # 3.10.12 and this integration uses PEP 695 `type X = ...`, which that
-      # interpreter cannot parse. Ruff already parses every file at py313.
       - name: JSON is valid
         run: |
           for f in custom_components/att_router_reboot/*.json hacs.json; do
-            python3 -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" "$f" || exit 1
+            python -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" "$f" || exit 1
           done
           echo "all JSON valid"
 
       - name: Manifest sanity
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           import json
           m = json.load(open("custom_components/att_router_reboot/manifest.json", encoding="utf-8"))
           missing = [k for k in ("domain","name","version","documentation","codeowners") if not m.get(k)]
@@ -57,8 +54,8 @@ jobs:
 
       - name: Quality scale is complete and honest
         run: |
-          python3 -m pip install --quiet "PyYAML==6.0.2"
-          python3 - <<'PY'
+          python -m pip install --quiet "PyYAML==6.0.2"
+          python - <<'PY'
           import json, yaml
           rules = yaml.safe_load(open(
               "custom_components/att_router_reboot/quality_scale.yaml", encoding="utf-8"))["rules"]
@@ -77,16 +74,11 @@ jobs:
           print(f"{len(rules)} rules; still todo: {', '.join(todo) or 'none'}")
           PY
 
-  # Installs Home Assistant, so it is manual only and never occupies the shared
-  # runner on an ordinary push. This is the job that runs tests/ha/.
   home-assistant:
     name: Home Assistant layer
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # The runner image ships 3.10; Home Assistant needs 3.13.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -109,7 +101,6 @@ jobs:
 
   hacs:
     name: hassfest + HACS
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
