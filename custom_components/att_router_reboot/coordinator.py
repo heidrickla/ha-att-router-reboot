@@ -6,9 +6,15 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import AttRouterClient, AttRouterConnectionError, AttRouterError
+from .api import (
+    AttRouterAuthError,
+    AttRouterClient,
+    AttRouterConnectionError,
+    AttRouterError,
+)
 from .const import DOMAIN, SCAN_INTERVAL
 from .models import GatewayData
 
@@ -18,12 +24,14 @@ type AttRouterConfigEntry = ConfigEntry[AttRouterCoordinator]
 
 
 class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
-    """Fetches uptime; owns the client and its HTTP session.
+    """Fetches uptime; owns the client.
 
     The data payload is a GatewayData: uptime plus the broadband statistics,
     both read without a login. Reboot is a command, driven by the
-    button/action/schedule, not by polling.
+    button/action/schedule through async_reboot, not by polling.
     """
+
+    config_entry: AttRouterConfigEntry
 
     def __init__(
         self,
@@ -54,9 +62,17 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
         try:
             uptime = await self.client.async_get_uptime()
         except AttRouterConnectionError as err:
-            raise UpdateFailed(f"gateway unreachable: {err}") from err
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="cannot_connect",
+                translation_placeholders={"error": str(err)},
+            ) from err
         except AttRouterError as err:
-            raise UpdateFailed(str(err)) from err
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
         # Broadband stats are a bonus, not a reason to fail the whole poll:
         # uptime is what the reboot logic and the schedule guard depend on.
@@ -69,3 +85,26 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
             )
 
         return GatewayData(uptime=uptime, broadband=broadband)
+
+    async def async_reboot(self) -> None:
+        """Reboot the gateway. The one path the button, action and schedule share.
+
+        A rejected access code starts the reauth flow, so the user is asked
+        for the new code instead of finding out from a failed automation.
+        """
+        try:
+            await self.client.async_reboot()
+        except AttRouterAuthError as err:
+            self.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        except AttRouterError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="reboot_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        await self.async_request_refresh()

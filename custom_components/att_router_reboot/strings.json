@@ -17,7 +17,7 @@
       },
       "reconfigure": {
         "title": "AT&T Gateway",
-        "description": "Change the gateway's address or access code.",
+        "description": "Change the access code or the certificate check. The address must still answer as this gateway; a gateway at a new address is added as a new entry.",
         "data": {
           "host": "Host",
           "access_code": "Device access code",
@@ -25,7 +25,7 @@
         },
         "data_description": {
           "host": "The gateway's LAN address. Usually 192.168.1.254.",
-          "access_code": "The device access code printed on the label on the gateway.",
+          "access_code": "Leave blank to keep the stored access code, or enter the new one printed on the label on the gateway.",
           "verify_ssl": "Leave off unless you have installed your own trusted certificate on the gateway."
         }
       },
@@ -137,12 +137,18 @@
     },
     "reboot_failed": {
       "message": "The reboot could not be sent to the gateway: {error}"
+    },
+    "cannot_connect": {
+      "message": "The gateway could not be reached: {error}"
+    },
+    "update_failed": {
+      "message": "The gateway answered with a page that could not be read: {error}"
     }
   },
   "services": {
     "reboot": {
       "name": "Reboot gateway",
-      "description": "Reboots the AT&T gateway now."
+      "description": "Reboots the AT&T gateway now. Takes no fields: the integration manages one gateway."
     }
   }
 }

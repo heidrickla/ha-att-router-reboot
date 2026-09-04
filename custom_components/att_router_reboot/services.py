@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.exceptions import ServiceValidationError
 
-from .api import AttRouterAuthError, AttRouterError
 from .const import DOMAIN, SERVICE_REBOOT
 from .coordinator import AttRouterConfigEntry
 
-REBOOT_SCHEMA = vol.Schema({vol.Optional("entry_id"): cv.string})
+# The integration allows one entry, so the action takes no target.
+REBOOT_SCHEMA = vol.Schema({})
 
 
 @callback
@@ -29,21 +28,6 @@ def async_setup_services(hass: HomeAssistant) -> None:
         return entries[0]
 
     async def _reboot(call: ServiceCall) -> None:
-        coordinator = _entry().runtime_data
-        try:
-            await coordinator.client.async_reboot()
-        except AttRouterAuthError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="auth_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        except AttRouterError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="reboot_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        await coordinator.async_request_refresh()
+        await _entry().runtime_data.async_reboot()
 
     hass.services.async_register(DOMAIN, SERVICE_REBOOT, _reboot, schema=REBOOT_SCHEMA)

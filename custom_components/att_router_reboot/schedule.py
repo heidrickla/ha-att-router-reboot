@@ -16,6 +16,7 @@ import logging
 from datetime import datetime
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
@@ -72,11 +73,11 @@ def async_setup_schedule(hass: HomeAssistant, entry: AttRouterConfigEntry) -> No
 
         _LOGGER.info("Scheduled reboot firing")
         try:
-            await coordinator.client.async_reboot()
-        except Exception:
-            _LOGGER.exception("Scheduled reboot failed")
-            return
-        await coordinator.async_request_refresh()
+            await coordinator.async_reboot()
+        except HomeAssistantError as err:
+            # Nobody is watching a timer fire, so the failure goes to the log.
+            # A rejected code has already started the reauth flow by now.
+            _LOGGER.error("Scheduled reboot failed: %s", err)
 
     entry.async_on_unload(
         async_track_time_change(hass, _fire, hour=hour, minute=minute, second=second)

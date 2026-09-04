@@ -120,6 +120,42 @@ async def test_a_weekly_schedule_ignores_the_wrong_day(hass, config_entry):
     reboot.assert_not_awaited()
 
 
+async def test_a_failing_scheduled_reboot_is_logged_not_raised(
+    hass, config_entry, caplog
+):
+    """A timer has no caller to report to; the failure must not escape."""
+    from custom_components.att_router_reboot.api import AttRouterError
+
+    await _setup(
+        hass,
+        config_entry,
+        {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
+        uptime=7200,
+    )
+    with patch(REBOOT, AsyncMock(side_effect=AttRouterError("no form"))):
+        await _fire_at(hass, _next_local(4, 0))
+    assert "Scheduled reboot failed" in caplog.text
+
+
+async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(hass, config_entry):
+    from homeassistant.config_entries import SOURCE_REAUTH
+
+    from custom_components.att_router_reboot.api import AttRouterAuthError
+
+    await _setup(
+        hass,
+        config_entry,
+        {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
+        uptime=7200,
+    )
+    with patch(REBOOT, AsyncMock(side_effect=AttRouterAuthError("rejected"))):
+        await _fire_at(hass, _next_local(4, 0))
+    assert any(
+        flow["context"].get("source") == SOURCE_REAUTH
+        for flow in hass.config_entries.flow.async_progress()
+    )
+
+
 async def test_no_timer_is_registered_when_the_schedule_is_off(hass, config_entry):
     await _setup(hass, config_entry, {}, uptime=7200)
     with patch(REBOOT, AsyncMock()) as reboot:

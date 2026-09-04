@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import AttRouterAuthError, AttRouterError
-from .const import DOMAIN
 from .coordinator import AttRouterConfigEntry, AttRouterCoordinator
 from .entity import AttRouterEntity
 
@@ -35,18 +32,6 @@ class AttRouterRebootButton(AttRouterEntity, ButtonEntity):
         super().__init__(coordinator, "reboot")
 
     async def async_press(self) -> None:
-        try:
-            await self.coordinator.client.async_reboot()
-        except AttRouterAuthError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="auth_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        except AttRouterError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="reboot_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        await self.coordinator.async_request_refresh()
+        # Raises a translated HomeAssistantError and starts reauth on a
+        # rejected code; see the coordinator.
+        await self.coordinator.async_reboot()
