@@ -20,12 +20,13 @@ jobs:
         with:
           python-version: "3.14"
       # 0.13.357 pins Home Assistant 2026.8.3, the release on the VM; it
-      # brings pytest, pytest-cov (7.1.0), its asyncio and aiohttp plugins and
-      # PyYAML with it. Pinning any of those again here makes pip's resolution
+      # brings pytest, pytest-cov (7.1.0), its asyncio and aiohttp plugins,
+      # PyYAML and Pillow (12.3.0, which the validator uses for brand sizes)
+      # with it. Pinning any of those again here makes pip's resolution
       # impossible, so none of them appear below.
       - run: |
           python -m pip install --upgrade pip
-          python -m pip install "mypy==1.18.2" "ruff==0.15.21" "Pillow==11.3.0" \
+          python -m pip install "mypy==1.18.2" "ruff==0.15.21" \
             "pytest-homeassistant-custom-component==0.13.357"
       - run: ruff check .
       - run: ruff format --check .

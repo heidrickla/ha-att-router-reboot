@@ -68,12 +68,12 @@ jobs:
           python-version: "3.14"
 
       # Same pins as .github/workflows/tests.yml. The harness brings pytest,
-      # pytest-cov and the asyncio and aiohttp plugins; pinning them again
-      # makes pip's resolution impossible.
+      # pytest-cov, the asyncio and aiohttp plugins and Pillow; pinning them
+      # again makes pip's resolution impossible.
       - name: Install
         run: |
           python -m pip install --quiet --upgrade pip
-          python -m pip install --quiet "mypy==1.18.2" "Pillow==11.3.0" \
+          python -m pip install --quiet "mypy==1.18.2" \
             "pytest-homeassistant-custom-component==0.13.357"
 
       - name: Pure tests (parser + client, no Home Assistant)
