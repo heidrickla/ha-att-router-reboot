@@ -2,26 +2,22 @@
 
 from __future__ import annotations
 
-import logging
-
-import aiohttp
+from aiohttp import CookieJar
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.typing import ConfigType
 
-from .api import (
-    AttRouterAuthError,
-    AttRouterClient,
-    AttRouterConnectionError,
-    AttRouterError,
-)
-from .const import CONF_ACCESS_CODE, CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+from .api import AttRouterClient
+from .const import CONF_ACCESS_CODE, CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL, DOMAIN
 from .coordinator import AttRouterConfigEntry, AttRouterCoordinator
 from .schedule import async_setup_schedule
 from .services import async_setup_services
 
-_LOGGER = logging.getLogger(__name__)
+# Nothing is configured from YAML; async_setup exists only to register the
+# action, and hassfest wants that said explicitly.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -43,32 +39,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) -> bool:
     """Set up from a config entry."""
-    session = aiohttp.ClientSession()
-    client = AttRouterClient(
-        session,
-        entry.data[CONF_HOST],
-        entry.data[CONF_ACCESS_CODE],
+    # A session of its own, not the shared one: the gateway's SessionID cookie
+    # must not leak into other integrations' requests. The jar is the unsafe
+    # one because the gateway is addressed by IP and aiohttp's default jar
+    # drops cookies from IP hosts, which is the "enable cookies" stub in
+    # api.py. The helper closes the session when the entry unloads.
+    session = async_create_clientsession(
+        hass,
         verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+        cookie_jar=CookieJar(unsafe=True),
+    )
+    client = AttRouterClient(
+        session, entry.data[CONF_HOST], entry.data[CONF_ACCESS_CODE]
     )
 
-    async def _close_session() -> None:
-        await session.close()
-
-    # Registered before the first refresh so a gateway that is unreachable at
-    # startup does not leak a session per retry.
-    entry.async_on_unload(_close_session)
-
     coordinator = AttRouterCoordinator(hass, entry, client)
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except ConfigEntryNotReady:
-        raise
-    except AttRouterAuthError as err:
-        raise ConfigEntryAuthFailed(str(err)) from err
-    except AttRouterConnectionError as err:
-        raise ConfigEntryNotReady(str(err)) from err
-    except AttRouterError as err:
-        raise ConfigEntryNotReady(str(err)) from err
+    # Raises ConfigEntryNotReady while the gateway is unreachable or serves a
+    # page the parser does not recognise.
+    await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -79,7 +67,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) ->
 
 async def async_unload_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) -> bool:
     """Unload a config entry. The reboot action stays registered - see async_setup."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded: bool = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    return unloaded
 
 
 async def _async_reload(hass: HomeAssistant, entry: AttRouterConfigEntry) -> None:

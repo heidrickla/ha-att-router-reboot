@@ -14,17 +14,18 @@ Two design choices worth stating, because each is load-bearing:
   through is not a place to guess.
 - The session cookie MUST round-trip. The first GET sets an HttpOnly SessionID;
   without it returning on the next request the gateway serves a form-less
-  "enable cookies" stub. aiohttp's cookie jar handles this as long as one
-  session object is reused, which is why the client owns its session.
+  "enable cookies" stub. The gateway is addressed by IP, and aiohttp's default
+  cookie jar DROPS cookies set by an IP host, so the session handed to this
+  client must carry `aiohttp.CookieJar(unsafe=True)`. The client owns no
+  session and no TLS policy of its own: both come from the caller, so the
+  same code runs under Home Assistant's session helper and in the pure tests.
 """
 
 from __future__ import annotations
 
 import hashlib
 import logging
-import ssl
 from html.parser import HTMLParser
-from typing import Any
 
 import aiohttp
 
@@ -97,37 +98,31 @@ def _parse_form(html: str) -> _FormParser:
     return parser
 
 
-def _legacy_ssl_context() -> ssl.SSLContext:
-    """Tolerate the gateway's self-signed certificate.
-
-    Verification is off by default (see const), but even then aiohttp needs a
-    context that does not fail the handshake on an untrusted local cert.
-    """
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    return ctx
-
-
 class AttRouterClient:
-    """Talks to one gateway on behalf of the integration."""
+    """Talks to one gateway on behalf of the integration.
+
+    The session decides TLS verification and cookie handling; see the module
+    docstring for why the cookie jar must be the unsafe one.
+    """
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
         host: str,
         access_code: str,
-        *,
-        verify_ssl: bool = False,
     ) -> None:
         self._session = session
         self._host = host
         self._access_code = access_code
-        self._ssl: ssl.SSLContext | bool = True if verify_ssl else _legacy_ssl_context()
 
     @property
     def base_url(self) -> str:
         return f"https://{self._host}"
+
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        """The session this client talks through."""
+        return self._session
 
     def _url(self, path: str) -> str:
         if path.startswith("http"):
@@ -144,9 +139,7 @@ class AttRouterClient:
 
     async def _get(self, path: str) -> str:
         try:
-            async with self._session.get(
-                self._url(path), ssl=self._ssl, timeout=_TIMEOUT
-            ) as resp:
+            async with self._session.get(self._url(path), timeout=_TIMEOUT) as resp:
                 if resp.status != 200:
                     raise AttRouterError(f"GET {path} returned HTTP {resp.status}")
                 return await resp.text()
@@ -173,8 +166,25 @@ class AttRouterClient:
         """WAN status and IPv4 counters. No login required."""
         return parse_broadband(await self._get("/cgi-bin/broadbandstatistics.ha"))
 
-    async def _login(self) -> None:
-        """Establish an authenticated session on restart.ha.
+    async def _restart_form(self) -> _FormParser:
+        """Fetch restart.ha and insist on the authenticated restart form.
+
+        This is the positive signal that a login worked. The cookies-disabled
+        stub has no form at all, and a rejected code re-serves the login form
+        with its hashpassword field; neither passes.
+        """
+        form = _parse_form(await self._get("/cgi-bin/restart.ha"))
+        if "hashpassword" in form.fields:
+            raise AttRouterAuthError("still on the login form after logging in")
+        if not form.fields:
+            raise AttRouterError(
+                "restart.ha served no form after login; the gateway is not "
+                "keeping the session cookie"
+            )
+        return form
+
+    async def _login(self) -> _FormParser:
+        """Establish an authenticated session and return the restart form.
 
         Two round-trips on purpose: the first primes the SessionID cookie so
         the second is served the real form (with its nonce) rather than the
@@ -184,12 +194,18 @@ class AttRouterClient:
         html = await self._get("/cgi-bin/restart.ha")
         form = _parse_form(html)
 
+        if "hashpassword" not in form.fields:
+            # No login form. Either the session is already authenticated and
+            # this is the restart form, or it is the cookies-disabled stub.
+            # Only the restart form counts as logged in.
+            if not form.fields:
+                raise AttRouterError(
+                    "restart.ha served neither a login form nor the restart "
+                    "form; the gateway is not keeping the session cookie"
+                )
+            return form
         nonce = form.fields.get("nonce")
         if nonce is None:
-            # Already authenticated (the reboot form has no nonce-less login),
-            # or the markup changed. If a password field is absent we are in.
-            if "hashpassword" not in html.lower():
-                return
             raise AttRouterError("login form had no nonce")
 
         # MD5 is the gateway's own login scheme (see the hex_md5 script it
@@ -207,10 +223,7 @@ class AttRouterClient:
         action = form.action or "/cgi-bin/login.ha"
         try:
             async with self._session.post(
-                self._url(action),
-                data=payload,
-                ssl=self._ssl,
-                timeout=_TIMEOUT,
+                self._url(action), data=payload, timeout=_TIMEOUT
             ) as resp:
                 body = await resp.text()
                 if resp.status not in (200, 302):
@@ -220,13 +233,14 @@ class AttRouterClient:
         except TimeoutError as err:
             raise AttRouterConnectionError("timed out logging in") from err
 
-        # A rejected code re-serves the login form; a good one lands on a page
-        # without the hash field. This is the only signal the gateway gives.
+        # A rejected code re-serves the login form. Catch it here for the
+        # clearer error; the restart form fetch below is the proof of success.
         if "hashpassword" in body.lower() and "nonce" in body.lower():
             raise AttRouterAuthError("the access code was rejected")
+        return await self._restart_form()
 
     async def async_verify_access_code(self) -> None:
-        """Log in and immediately discard the session. Raises on failure.
+        """Log in and prove it by reading the restart form. Raises on failure.
 
         Used by the config flow so a wrong access code is caught while the user
         is still on the form, not on the first reboot weeks later.
@@ -235,23 +249,11 @@ class AttRouterClient:
 
     async def async_reboot(self) -> None:
         """Log in, then replay the gateway's own restart form."""
-        await self._login()
-        html = await self._get("/cgi-bin/restart.ha")
-        form = _parse_form(html)
-
-        if not form.fields:
-            raise AttRouterError("the restart page had no form to submit after login")
-        # A lingering login form here means the session did not authenticate.
-        if "hashpassword" in form.fields:
-            raise AttRouterAuthError("still on the login form when trying to reboot")
-
+        form = await self._login()
         action = form.action or "/cgi-bin/restart.ha"
         try:
             async with self._session.post(
-                self._url(action),
-                data=form.fields,
-                ssl=self._ssl,
-                timeout=_TIMEOUT,
+                self._url(action), data=form.fields, timeout=_TIMEOUT
             ) as resp:
                 # The gateway tears the connection down as it reboots, so a
                 # dropped response is success, not failure. Only a clean
@@ -260,11 +262,3 @@ class AttRouterClient:
                     raise AttRouterError(f"reboot returned HTTP {resp.status}")
         except (aiohttp.ClientError, TimeoutError):
             _LOGGER.debug("Connection dropped during reboot, as expected")
-
-    async def async_diagnostics(self) -> dict[str, Any]:
-        """Non-identifying facts for a diagnostics dump."""
-        try:
-            uptime = await self.async_get_uptime()
-        except AttRouterError:
-            uptime = -1
-        return {"uptime_seconds": uptime, "host": self._host}
