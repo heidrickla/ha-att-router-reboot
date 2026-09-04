@@ -209,7 +209,10 @@ async def test_an_unreachable_gateway_retries_with_a_translated_reason(
         await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    # The reason must sit on the ConfigEntryNotReady itself: the released core
+    # never looks at its cause, so the card would otherwise show nothing.
     assert config_entry.error_reason_translation_key == "cannot_connect"
+    assert config_entry.error_reason_translation_placeholders == {"error": "down"}
 
 
 async def test_an_unreadable_page_at_setup_retries(hass, config_entry):
@@ -222,6 +225,9 @@ async def test_an_unreadable_page_at_setup_retries(hass, config_entry):
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
     assert config_entry.error_reason_translation_key == "update_failed"
+    assert config_entry.error_reason_translation_placeholders == {
+        "error": "no uptime on the page"
+    }
 
 
 async def test_losing_the_gateway_marks_entities_unavailable_but_not_reachable(

@@ -63,9 +63,12 @@ rules:
   test-before-setup:
     status: done
     comment: |
-      async_config_entry_first_refresh raises ConfigEntryNotReady, carrying
-      the coordinator's translated UpdateFailed, while the gateway is
-      unreachable or serves a page the parser cannot read.
+      async_config_entry_first_refresh raises ConfigEntryNotReady while the
+      gateway is unreachable or serves a page the parser cannot read. Core
+      2026.8.3 raises it bare, with the translated UpdateFailed only as the
+      cause, so async_setup_entry catches it and re-raises a ConfigEntryNotReady
+      carrying the cause's translation key and placeholders. tests/ha/test_init.py
+      asserts the key and placeholders reach the entry.
   unique-config-entry:
     status: done
     comment: |
@@ -149,8 +152,11 @@ rules:
     status: done
     comment: |
       UpdateFailed, HomeAssistantError and ServiceValidationError are raised
-      with translation keys; ConfigEntryNotReady inherits the coordinator's.
-      tools/validate_local.py fails on any call without one.
+      with translation keys. The bare ConfigEntryNotReady from the first
+      refresh is caught in async_setup_entry and re-raised with the cause's
+      key and placeholders, because the released core reads the reason from
+      the exception itself and not from its cause. tools/validate_local.py
+      fails on any call without a translation key.
   icon-translations:
     status: done
     comment: |
