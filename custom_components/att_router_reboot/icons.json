@@ -1,19 +1,8 @@
 {
   "entity": {
-    "button": {
-      "reboot": {
-        "default": "mdi:restart"
-      }
-    },
     "sensor": {
-      "uptime": {
-        "default": "mdi:timer-outline"
-      },
       "wan_ip": {
         "default": "mdi:ip-network"
-      },
-      "line_rate": {
-        "default": "mdi:speedometer"
       },
       "rx_bytes": {
         "default": "mdi:download-network"
@@ -26,20 +15,6 @@
       },
       "tx_errors": {
         "default": "mdi:alert-circle-outline"
-      }
-    },
-    "binary_sensor": {
-      "reachable": {
-        "default": "mdi:router-network",
-        "state": {
-          "off": "mdi:router-network-wireless"
-        }
-      },
-      "wan_connected": {
-        "default": "mdi:wan",
-        "state": {
-          "off": "mdi:network-off"
-        }
       }
     }
   },
