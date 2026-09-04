@@ -160,10 +160,12 @@ rules:
   icon-translations:
     status: done
     comment: |
-      Icons only for the entities whose device class supplies none: the WAN
-      address, the byte counters and the error counters. The reboot button,
-      uptime, line rate and both connectivity sensors take the device-class
-      icon.
+      The WAN address and the error counters have no device class, so
+      icons.json supplies theirs. The byte counters carry data_size, whose
+      core icon is a generic mdi:database; they override it on purpose with
+      directional download and upload icons, as core's fritz does. The reboot
+      button, uptime, line rate and both connectivity sensors take the
+      device-class icon.
   reconfiguration-flow:
     status: done
     comment: |

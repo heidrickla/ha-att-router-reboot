@@ -17,7 +17,7 @@
       },
       "reconfigure": {
         "title": "AT&T Gateway",
-        "description": "Change the access code or the certificate check. The address must still answer as this gateway; a gateway at a new address is added as a new entry.",
+        "description": "Change the access code or the certificate check. The address must still answer as this gateway; for a gateway at a new address, delete this entry and add the gateway again.",
         "data": {
           "host": "Host",
           "access_code": "Device access code",
