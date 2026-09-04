@@ -182,16 +182,26 @@ async def test_reconfigure_with_a_blank_code_keeps_the_stored_one(hass, config_e
     await hass.async_block_till_done()
 
 
-async def test_reconfigure_recovers_from_a_rejected_code(hass, config_entry):
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        (AttRouterAuthError("no"), "invalid_auth"),
+        (AttRouterConnectionError("down"), "cannot_connect"),
+        (AttRouterError("weird"), "unknown"),
+    ],
+)
+async def test_reconfigure_shows_each_error_and_then_recovers(
+    hass, config_entry, raised, expected
+):
     config_entry.add_to_hass(hass)
-    with patch(VERIFY, side_effect=AttRouterAuthError("no")):
+    with patch(VERIFY, side_effect=raised):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": "reconfigure", "entry_id": config_entry.entry_id},
             data={**ENTRY_DATA, CONF_ACCESS_CODE: "wrong"},
         )
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "invalid_auth"}
+    assert result["errors"] == {"base": expected}
     _assert_no_secret_shown(result)
     assert config_entry.data[CONF_ACCESS_CODE] == ENTRY_DATA[CONF_ACCESS_CODE]
 
