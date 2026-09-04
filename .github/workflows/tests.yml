@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Gitea's act_runner also picks up .github/workflows, so every job here is
+# gated to GitHub. On the gitea forge these skip instantly and
+# .gitea/workflows/validate.yml is the one that runs.
+
+jobs:
+  tests:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Home Assistant 2026.x needs Python 3.14.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      # 0.13.357 pins Home Assistant 2026.8.3, the release on the VM; it
+      # brings pytest, its asyncio and aiohttp plugins and PyYAML with it
+      # (pinning those again here makes pip's resolution impossible).
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install "mypy==1.18.2" "ruff==0.15.21" "Pillow==11.3.0" \
+            "pytest-cov==7.0.0" "pytest-homeassistant-custom-component==0.13.357"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant
+      # Coverage is reported, not yet gated; the 95% gate lands once the
+      # number is known.
+      - run: |
+          python -m pytest tests/ha -q \
+            --cov=custom_components/att_router_reboot --cov-report=term-missing
+      - run: python -m mypy custom_components/att_router_reboot
+      - run: python tools/validate_local.py
+
+  hassfest-hacs:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+      - uses: hacs/action@main
+        with:
+          category: integration
