@@ -20,6 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The runner image ships Python 3.10.12, which cannot parse the PEP 695
+      # `type X = ...` statements this integration uses; the offline validator
+      # runs ast.parse over every module, so it needs the same 3.14 the
+      # Home Assistant job uses.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
       # Pinned: an unpinned linter makes CI non-reproducible, and this exact
       # failure has already been paid for once on the sleepiq repo.
       - name: Install ruff (PINNED)
@@ -33,9 +41,6 @@ jobs:
           python3 -m ruff check .
           python3 -m ruff format --check .
 
-      # No ast.parse step here on purpose. The runner image ships Python
-      # 3.10.12 and this integration uses PEP 695 `type X = ...`, which that
-      # interpreter cannot parse. Ruff already parses every file at py313.
       - name: JSON is valid
         run: |
           for f in custom_components/att_router_reboot/*.json hacs.json; do
@@ -62,12 +67,14 @@ jobs:
         with:
           python-version: "3.14"
 
-      # Same pins as .github/workflows/tests.yml.
+      # Same pins as .github/workflows/tests.yml. The harness brings pytest,
+      # pytest-cov and the asyncio and aiohttp plugins; pinning them again
+      # makes pip's resolution impossible.
       - name: Install
         run: |
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet "mypy==1.18.2" "Pillow==11.3.0" \
-            "pytest-cov==7.0.0" "pytest-homeassistant-custom-component==0.13.357"
+            "pytest-homeassistant-custom-component==0.13.357"
 
       - name: Pure tests (parser + client, no Home Assistant)
         run: python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant
