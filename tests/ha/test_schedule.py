@@ -3,12 +3,15 @@
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
 from custom_components.att_router_reboot.const import (
     CONF_SCHEDULE,
     CONF_SCHEDULE_TIME,
     CONF_SCHEDULE_WEEKDAY,
+    DOMAIN,
+    ISSUE_SCHEDULED_REBOOT_FAILED,
     SCHEDULE_DAILY,
     SCHEDULE_WEEKLY,
     WEEKDAYS,
@@ -117,10 +120,15 @@ async def test_a_weekly_schedule_ignores_the_wrong_day(hass, config_entry, gatew
     reboot.assert_not_awaited()
 
 
-async def test_a_failing_scheduled_reboot_is_logged_not_raised(
+def _issue(hass):
+    return ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
+
+
+async def test_a_failing_scheduled_reboot_raises_a_repair_issue(
     hass, config_entry, gateway, caplog
 ):
-    """A timer has no caller to report to; the failure must not escape."""
+    """A timer has no caller to report to. The failure must not escape, and it
+    must not be a log line only: nobody reads the log for a 4 a.m. timer."""
     from custom_components.att_router_reboot.api import AttRouterError
 
     await _setup(
@@ -133,6 +141,53 @@ async def test_a_failing_scheduled_reboot_is_logged_not_raised(
     with patch(REBOOT, AsyncMock(side_effect=AttRouterError("no form"))):
         await _fire_at(hass, _next_local(4, 0))
     assert "Scheduled reboot failed" in caplog.text
+    issue = _issue(hass)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_SCHEDULED_REBOOT_FAILED
+    assert issue.translation_placeholders == {"error": "no form"}
+    assert issue.severity is ir.IssueSeverity.WARNING
+    assert issue.is_fixable is False
+
+
+async def test_a_later_successful_scheduled_reboot_clears_the_issue(
+    hass, config_entry, gateway
+):
+    from custom_components.att_router_reboot.api import AttRouterError
+
+    fire = _next_local(4, 0)
+    await _setup(
+        hass,
+        config_entry,
+        gateway,
+        {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
+        uptime=7200,
+    )
+    with patch(REBOOT, AsyncMock(side_effect=AttRouterError("no form"))):
+        await _fire_at(hass, fire)
+    assert _issue(hass) is not None
+
+    with patch(REBOOT, AsyncMock()):
+        await _fire_at(hass, fire + timedelta(days=1))
+    assert _issue(hass) is None
+
+
+async def test_a_rejected_code_raises_reauth_and_not_a_repair_issue(
+    hass, config_entry, gateway
+):
+    """Reauth is the better prompt for a changed code; two notices for one
+    fault would just be noise."""
+    from custom_components.att_router_reboot.api import AttRouterAuthError
+
+    await _setup(
+        hass,
+        config_entry,
+        gateway,
+        {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
+        uptime=7200,
+    )
+    with patch(REBOOT, AsyncMock(side_effect=AttRouterAuthError("rejected"))):
+        await _fire_at(hass, _next_local(4, 0))
+    assert _issue(hass) is None
 
 
 async def test_a_rejected_code_on_a_scheduled_reboot_starts_reauth(

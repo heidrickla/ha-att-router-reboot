@@ -145,6 +145,12 @@
       "message": "The gateway answered with a page that could not be read: {error}"
     }
   },
+  "issues": {
+    "scheduled_reboot_failed": {
+      "title": "The scheduled gateway reboot failed",
+      "description": "The automatic reboot of the AT&T gateway did not go through: {error}\n\nA scheduled reboot has nobody watching it, so this notice is the only place it shows. Check that the gateway still answers at its address and that the device access code is the one printed on its label, then press the Reboot button to try again. This issue clears itself the next time a scheduled reboot succeeds; to stop being told, set the schedule to Off under Configure."
+    }
+  },
   "services": {
     "reboot": {
       "name": "Reboot gateway",

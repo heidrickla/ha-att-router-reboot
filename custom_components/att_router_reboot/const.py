@@ -52,3 +52,8 @@ DEFAULT_SCHEDULE_WEEKDAY = "sunday"
 MIN_UPTIME_FOR_SCHEDULED_REBOOT = timedelta(minutes=30)
 
 SERVICE_REBOOT = "reboot"
+
+# A scheduled reboot fires with nobody watching it. A rejected code starts the
+# reauth flow, which is its own prompt; any other failure is raised as a repair
+# issue so it is more than a log line.
+ISSUE_SCHEDULED_REBOOT_FAILED = "scheduled_reboot_failed"

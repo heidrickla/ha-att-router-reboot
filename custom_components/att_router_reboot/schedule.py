@@ -17,6 +17,7 @@ from datetime import datetime
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
@@ -26,6 +27,8 @@ from .const import (
     DEFAULT_SCHEDULE,
     DEFAULT_SCHEDULE_TIME,
     DEFAULT_SCHEDULE_WEEKDAY,
+    DOMAIN,
+    ISSUE_SCHEDULED_REBOOT_FAILED,
     MIN_UPTIME_FOR_SCHEDULED_REBOOT,
     SCHEDULE_OFF,
     SCHEDULE_WEEKLY,
@@ -75,9 +78,26 @@ def async_setup_schedule(hass: HomeAssistant, entry: AttRouterConfigEntry) -> No
         try:
             await coordinator.async_reboot()
         except HomeAssistantError as err:
-            # Nobody is watching a timer fire, so the failure goes to the log.
-            # A rejected code has already started the reauth flow by now.
+            # Nobody is watching a timer fire. A rejected code has already
+            # started the reauth flow, which is the better prompt; anything
+            # else becomes a repair issue so it is more than a log line.
             _LOGGER.error("Scheduled reboot failed: %s", err)
+            if err.translation_key != "auth_failed":
+                detail = (err.translation_placeholders or {}).get("error") or str(err)
+                ir.async_create_issue(
+                    hass,
+                    DOMAIN,
+                    ISSUE_SCHEDULED_REBOOT_FAILED,
+                    is_fixable=False,
+                    issue_domain=DOMAIN,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key=ISSUE_SCHEDULED_REBOOT_FAILED,
+                    translation_placeholders={"error": detail},
+                )
+            return
+
+        # A schedule that works again clears the warning it raised.
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
 
     entry.async_on_unload(
         async_track_time_change(hass, _fire, hour=hour, minute=minute, second=second)
