@@ -77,7 +77,8 @@ rather than a history of a released product.
 - Setup and poll failures carry translation keys, so the integration card shows
   a real reason instead of an f-string.
 - `quality_scale.yaml` states each rule as it stands, with a written reason on
-  every exemption and on the two rules still `todo`.
+  every exemption and on the two rules then still `todo` (both `exempt`
+  since 2026-09-05, see Unreleased).
 
 ### Fixed
 
