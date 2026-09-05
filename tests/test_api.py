@@ -208,6 +208,54 @@ def test_a_login_form_without_a_nonce_is_an_error():
         asyncio.run(_client(session).async_verify_access_code())
 
 
+def test_the_client_hands_its_session_back():
+    """Diagnostics and the tests read the cookie jar off the client, so the
+    session the caller passed in has to be reachable from it."""
+    session = _Session(pages=[], post_result=(200, ""))
+    assert _client(session).session is session
+
+
+def test_an_input_without_a_name_is_ignored():
+    """This firmware's markup carries nameless inputs; one must not become a
+    field called "" in the replayed POST."""
+    form = api._parse_form(
+        '<form action="/cgi-bin/restart.ha">'
+        '<input type="hidden" value="no name here" />'
+        '<input type="hidden" name="nonce" value="abcd" />'
+        "</form>"
+    )
+    assert form.fields == {"nonce": "abcd"}
+
+
+def test_uptime_is_read_from_the_real_page():
+    session = _Session(pages=[(200, _fixture("sysinfo.html"))], post_result=(200, ""))
+    assert asyncio.run(_client(session).async_get_uptime()) == 1085939
+
+
+def test_a_login_post_rejected_with_a_status_is_an_error():
+    login = _fixture("restart_login.html")
+    session = _Session(pages=[(200, login), (200, login)], post_result=(500, "boom"))
+    with pytest.raises(api.AttRouterError, match="login returned HTTP 500"):
+        asyncio.run(_client(session).async_verify_access_code())
+
+
+def test_transport_failures_on_the_login_post_are_connection_errors():
+    login = _fixture("restart_login.html")
+
+    class _Down(_Session):
+        def post(self, url: str, data: dict, **kwargs: object) -> _Resp:
+            raise aiohttp.ClientConnectionError("refused")
+
+    class _Slow(_Session):
+        def post(self, url: str, data: dict, **kwargs: object) -> _Resp:
+            raise TimeoutError
+
+    for cls in (_Down, _Slow):
+        session = cls(pages=[(200, login), (200, login)], post_result=(200, ""))
+        with pytest.raises(api.AttRouterConnectionError):
+            asyncio.run(_client(session).async_verify_access_code())
+
+
 def test_a_non_200_page_is_an_error_not_a_connection_error():
     session = _Session(pages=[(500, "boom")], post_result=(200, ""))
     with pytest.raises(api.AttRouterError) as info:

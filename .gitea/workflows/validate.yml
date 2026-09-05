@@ -76,13 +76,19 @@ jobs:
           python -m pip install --quiet "mypy==1.18.2" \
             "pytest-homeassistant-custom-component==0.13.357"
 
+      # Same two-stage coverage run as the GitHub workflow: the pure suite
+      # covers the parser and the client that the Home Assistant tests mock
+      # out, and the 95% gate is on the total.
       - name: Pure tests (parser + client, no Home Assistant)
-        run: python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant
+        run: |
+          python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant \
+            --cov=custom_components/att_router_reboot --cov-report=
 
       - name: Home Assistant layer tests
         run: |
-          python -m pytest tests/ha -q \
-            --cov=custom_components/att_router_reboot --cov-report=term-missing
+          python -m pytest tests/ha -q --cov-append \
+            --cov=custom_components/att_router_reboot \
+            --cov-report=term-missing --cov-fail-under=95
 
       - name: mypy strict
         run: python -m mypy custom_components/att_router_reboot

@@ -6,7 +6,11 @@ import pytest
 from aiohttp import CookieJar
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import (
+    ConfigEntryNotReady,
+    HomeAssistantError,
+    ServiceValidationError,
+)
 from yarl import URL
 
 from custom_components.att_router_reboot.api import (
@@ -14,11 +18,20 @@ from custom_components.att_router_reboot.api import (
     AttRouterConnectionError,
     AttRouterError,
 )
-from custom_components.att_router_reboot.const import DOMAIN, SERVICE_REBOOT
+from custom_components.att_router_reboot.binary_sensor import (
+    AttRouterWanConnectedSensor,
+)
+from custom_components.att_router_reboot.const import (
+    CONF_SCHEDULE,
+    DOMAIN,
+    SCHEDULE_DAILY,
+    SERVICE_REBOOT,
+)
 from custom_components.att_router_reboot.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 from custom_components.att_router_reboot.models import GatewayData
+from custom_components.att_router_reboot.sensor import SENSORS, AttRouterSensor
 
 from .conftest import (
     BROADBAND,
@@ -273,6 +286,54 @@ async def test_data_payload_shape(hass, config_entry, gateway):
     assert isinstance(data, GatewayData)
     assert data.uptime == 1000
     assert data.broadband.speed_mbps == 1000
+
+
+async def test_a_setup_failure_with_no_translated_cause_is_left_alone(
+    hass, config_entry, gateway
+):
+    """The lifting in async_setup_entry applies only to a cause that carries a
+    key; anything else must reach core exactly as it was raised."""
+    config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.att_router_reboot.coordinator.AttRouterCoordinator"
+        ".async_config_entry_first_refresh",
+        side_effect=ConfigEntryNotReady("something else entirely"),
+    ):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert config_entry.error_reason_translation_key is None
+
+
+async def test_a_model_lookup_failure_does_not_block_setup(hass, config_entry, gateway):
+    """Model, serial and firmware only enrich the device page; uptime is what
+    the entities need, so a miss there must not fail the entry."""
+    gateway.model.side_effect = AttRouterError("sysinfo moved")
+    await _setup(hass, config_entry, gateway)
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert hass.states.get(UPTIME_SENSOR).state == "1000"
+
+
+async def test_changing_the_options_reloads_the_entry(hass, config_entry, gateway):
+    """The schedule is wired at setup, so an options change has to reload."""
+    await _setup(hass, config_entry, gateway)
+    first = config_entry.runtime_data
+    hass.config_entries.async_update_entry(
+        config_entry, options={CONF_SCHEDULE: SCHEDULE_DAILY}
+    )
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert config_entry.runtime_data is not first
+
+
+async def test_entities_read_unknown_before_the_first_poll(hass, config_entry, gateway):
+    """Every value comes from coordinator.data, which is None until the first
+    refresh lands. Nothing may invent a zero in that window."""
+    await _setup(hass, config_entry, gateway)
+    coordinator = config_entry.runtime_data
+    coordinator.data = None
+    assert AttRouterWanConnectedSensor(coordinator).is_on is None
+    assert AttRouterSensor(coordinator, SENSORS[0]).native_value is None
 
 
 async def test_diagnostics_redact_what_identifies_the_household(

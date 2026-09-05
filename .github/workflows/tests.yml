@@ -30,12 +30,16 @@ jobs:
             "pytest-homeassistant-custom-component==0.13.357"
       - run: ruff check .
       - run: ruff format --check .
-      - run: python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant
-      # Coverage is reported, not yet gated; the 95% gate lands once the
-      # number is known.
+      # Coverage spans both suites and the gate is on the total. The pure
+      # suite covers the parser and the client, which the Home Assistant tests
+      # mock out; either figure alone understates the integration.
       - run: |
-          python -m pytest tests/ha -q \
-            --cov=custom_components/att_router_reboot --cov-report=term-missing
+          python -m pytest tests/test_parse.py tests/test_api.py -q -p no:homeassistant \
+            --cov=custom_components/att_router_reboot --cov-report=
+      - run: |
+          python -m pytest tests/ha -q --cov-append \
+            --cov=custom_components/att_router_reboot \
+            --cov-report=term-missing --cov-fail-under=95
       - run: python -m mypy custom_components/att_router_reboot
       - run: python tools/validate_local.py
 
