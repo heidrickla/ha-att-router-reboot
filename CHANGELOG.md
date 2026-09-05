@@ -4,10 +4,11 @@ All notable changes to this integration are recorded here, newest first. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Version 0.1.0 is the version in `manifest.json`; it has no git tag or GitHub
-release yet, so HACS installs the default branch.
+Version 0.2.0 is the version in `manifest.json` and in `const.VERSION`, and it
+is the first tagged GitHub release, so HACS installs it rather than the default
+branch.
 
-## [Unreleased] - 2026-09-05
+## [0.2.0] - 2026-09-05
 
 ### Changed
 
@@ -21,6 +22,8 @@ release yet, so HACS installs the default branch.
 - README gains a Discovery section saying the gateway is added by address and
   why nothing can find it, and its Known limitations and Quality scale sections
   now match.
+- The version in `manifest.json` and `const.VERSION` moves to 0.2.0, the first
+  version carrying a git tag and a GitHub release.
 
 ## [0.1.0] - 2026-09-04
 
@@ -78,7 +81,7 @@ rather than a history of a released product.
   a real reason instead of an f-string.
 - `quality_scale.yaml` states each rule as it stands, with a written reason on
   every exemption and on the two rules then still `todo` (both `exempt`
-  since 2026-09-05, see Unreleased).
+  since 2026-09-05, see 0.2.0).
 
 ### Fixed
 
