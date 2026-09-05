@@ -347,6 +347,73 @@ def main() -> int:
             )
             if todo:
                 notes.append(f"quality scale still todo: {', '.join(todo)}")
+
+            # A `done` has to be contradicted by the file set when the code
+            # for it is absent. Prose in a comment is not evidence; these are
+            # the mechanisms whose presence can be read off the repository.
+            def status(rule: str) -> str:
+                value = declared.get(rule)
+                if isinstance(value, dict):
+                    return str(value.get("status"))
+                return "done" if value == "done" else "missing"
+
+            component_src = "\n".join(
+                read(COMP, f) for f in sorted(os.listdir(COMP)) if f.endswith(".py")
+            )
+            github_workflow = os.path.join(ROOT, ".github", "workflows", "tests.yml")
+            ci = read(github_workflow) if os.path.isfile(github_workflow) else ""
+            for rule, present, missing_because in (
+                (
+                    "test-coverage",
+                    "--cov-fail-under=95" in ci,
+                    "no --cov-fail-under=95 in .github/workflows/tests.yml, so "
+                    "nothing stops coverage falling below 95%",
+                ),
+                (
+                    "strict-typing",
+                    "strict = true" in pyproject and "mypy " in ci,
+                    "pyproject does not set mypy strict, or the GitHub workflow "
+                    "does not run mypy",
+                ),
+                (
+                    "repair-issues",
+                    "async_create_issue" in component_src,
+                    "no async_create_issue call anywhere in the integration",
+                ),
+                (
+                    "reconfiguration-flow",
+                    "async_step_reconfigure" in component_src,
+                    "no async_step_reconfigure in the config flow",
+                ),
+                (
+                    "reauthentication-flow",
+                    "async_step_reauth" in component_src,
+                    "no async_step_reauth in the config flow",
+                ),
+                (
+                    "diagnostics",
+                    os.path.isfile(os.path.join(COMP, "diagnostics.py")),
+                    "no diagnostics.py",
+                ),
+                (
+                    "discovery",
+                    any(
+                        k in manifest
+                        for k in (
+                            "bluetooth",
+                            "dhcp",
+                            "homekit",
+                            "mqtt",
+                            "ssdp",
+                            "usb",
+                            "zeroconf",
+                        )
+                    ),
+                    "the manifest declares no discovery method",
+                ),
+            ):
+                if status(rule) == "done":
+                    check(present, f"{rule} is done but {missing_because}")
         except ImportError:
             notes.append("PyYAML not installed - quality_scale.yaml not parsed")
 

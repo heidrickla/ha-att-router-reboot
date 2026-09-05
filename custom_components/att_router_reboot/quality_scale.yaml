@@ -104,11 +104,13 @@ rules:
       shows: AttRouterCoordinator.async_reboot starts the reauth flow on
       AttRouterAuthError from the button, the action or the schedule.
   test-coverage:
-    status: todo
+    status: done
     comment: |
-      Coverage is measured by the GitHub Tests workflow (pytest-cov,
-      term-missing) but not yet gated at 95%; the gate lands once the first
-      measured number is known and any gaps are closed.
+      The GitHub Tests workflow measures both suites into one coverage file -
+      the pure parser and client tests with --cov, then tests/ha with
+      --cov-append - and fails the run below 95% (--cov-fail-under=95).
+      Measuring either suite alone understates the integration, because the
+      Home Assistant tests mock the client the pure tests exercise.
 
   # Gold
   devices: done
@@ -122,12 +124,21 @@ rules:
     status: todo
     comment: |
       The gateway is at a well-known fixed address, but BGW-series gateways
-      advertise UPnP IGD over SSDP by default and that has not been measured
-      from a LAN host; an exemption cannot be claimed until it is. Implement
-      or exempt once measured; do not guess a service type.
+      advertise UPnP IGD over SSDP by default, so the rule's exemption (the
+      device cannot be discovered) is not available. An SSDP matcher needs the
+      unit's own deviceType, manufacturer and modelName strings, and those can
+      only be read from a host on the gateway's LAN - VLAN 54, where this
+      repository is worked on, has no route to 192.168.1.254. Nothing here is
+      guessed: a matcher built on a plausible-looking service type would claim
+      other vendors' routers. Blocked until someone runs an SSDP M-SEARCH from
+      the Home Assistant VM and records the strings.
   discovery-update-info:
     status: todo
-    comment: Follows discovery.
+    comment: |
+      Follows discovery: without a discovery flow there is nothing to carry a
+      new address in. The unique id is the host today, so adopting discovery
+      also means moving it to the gateway's serial (sysinfo.ha reports one)
+      before an address change can update an existing entry.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -174,11 +185,16 @@ rules:
       the host, so a gateway at a new address is another gateway and is
       refused - documented in the README.
   repair-issues:
-    status: exempt
+    status: done
     comment: |
-      Authentication failure starts the reauth flow (coordinator.async_reboot).
-      No other recoverable condition needs a repair issue rather than ordinary
-      unavailability.
+      A scheduled reboot fires with nobody watching it, so schedule.py raises
+      the scheduled_reboot_failed issue when one fails and deletes it when a
+      later one succeeds. The text says what the user can check and how to
+      stop being told. A rejected access code is excluded: it starts the
+      reauth flow instead, which is the better prompt, and two notices for one
+      fault would be noise. Every other fault (an unreachable gateway, an
+      unreadable page) is ordinary unavailability with a user watching, which
+      the rule says not to raise an issue for.
   stale-devices:
     status: exempt
     comment: A single fixed device that is removed with the entry.
@@ -200,8 +216,13 @@ rules:
       other integrations' requests, and unsafe because the gateway is
       addressed by IP and the default jar drops cookies from IP hosts.
   strict-typing:
-    status: todo
+    status: done
     comment: |
-      pyproject.toml runs mypy strict with no relaxations; the GitHub Tests
-      workflow runs it with Home Assistant 2026.8.3 installed, which is the
-      run that means something. Marked done once that run is green.
+      pyproject.toml runs mypy strict with no relaxations, and the GitHub
+      Tests workflow runs it on Python 3.14 with Home Assistant 2026.8.3
+      installed, which is the run that means something: "Success: no issues
+      found in 14 source files" on run 33923274528. runtime-data uses the
+      typed AttRouterConfigEntry alias throughout. The rule's PEP-561 half is
+      about a separate library; the client here is in-repo and typed with the
+      rest of the integration, and the .strict-typing registration it also
+      asks for is a file in core, which a custom integration has no entry in.
