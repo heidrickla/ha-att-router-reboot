@@ -110,6 +110,13 @@ minutes**, so a schedule firing right after a manual reboot, or a gateway stuck
 in a restart loop, cannot keep power-cycling the one device the house depends
 on for internet. The skip is logged at info.
 
+If a scheduled reboot **fails**, a repair notice appears under Settings ->
+System -> Repairs saying so, because nobody is watching a timer fire at four in
+the morning. It names the error, says what to check, and clears itself the next
+time a scheduled reboot succeeds. A rejected access code is the one exception:
+that raises a re-authentication prompt instead, which is the more useful thing
+to be asked.
+
 ### Reconfiguring
 
 Settings -> Devices & services -> AT&T Router Reboot -> the three dots ->
@@ -215,8 +222,12 @@ automation:
 - Verified only against BGW320-500 / 6.35.8. Other models render the same pages
   with small differences; the parser degrades to "unknown" on a field it does
   not recognise rather than reporting a wrong number.
-- No discovery. The gateway is at a well-known address, and its SSDP
-  advertisement has not been measured, so nothing is guessed at.
+- No discovery. A BGW advertises UPnP over SSDP, so discovery is possible in
+  principle, but a matcher needs the unit's own deviceType, manufacturer and
+  modelName strings and those have not been measured from a host on the
+  gateway's LAN. A matcher guessed from a plausible service type would claim
+  other vendors' routers, so nothing is guessed. The gateway is at a
+  well-known address in the meantime.
 
 ## Troubleshooting
 
@@ -230,7 +241,7 @@ automation:
 | Internet connection is off but the sensors update | The gateway is up and its upstream is down. This is the case the Reboot button is for. |
 | The Reboot button did nothing; Uptime did not reset | Look for "reboot returned HTTP" or "still on the login form" in the log. The first means the gateway refused the form; the second means the login did not stick and a reauth prompt has been raised. |
 | The action says the integration is not loaded | The config entry is disabled, failed to set up or is still retrying. Its card under Devices & services says why. |
-| A scheduled reboot did not happen | Either the gateway had been up for less than 30 minutes (logged at info as skipped), or the weekly schedule's day did not match. |
+| A scheduled reboot did not happen | Either the gateway had been up for less than 30 minutes (logged at info as skipped), or the weekly schedule's day did not match. If it was attempted and failed, there is a repair notice under Settings -> System -> Repairs with the error in it. |
 
 For more detail:
 
@@ -251,8 +262,12 @@ host, serial, MAC and public IP address redacted.
   and serial replaced by documentation placeholders) and against aiohttp's
   real cookie jar.
 - The Home Assistant layer is under `tests/ha/` and runs in the GitHub Tests
-  workflow on every push, with coverage reported, `mypy --strict`, hassfest
-  and the HACS action.
+  workflow on every push, alongside `mypy --strict` with Home Assistant
+  installed, hassfest and the HACS action.
+- Coverage is measured over both suites into one file (the pure suite with
+  `--cov`, then `tests/ha` with `--cov-append`) and the run fails below 95%.
+  Measuring only the Home Assistant suite understates it, because those tests
+  mock the client the pure suite exercises.
 - `python tools/validate_local.py` runs the offline checks (manifest,
   translations, actions, icons, exception keys, the quality scale against the
   pinned rule list) before a push.
@@ -262,8 +277,11 @@ host, serial, MAC and public IP address redacted.
 
 Built to Home Assistant's Integration Quality Scale, rule by rule, in
 `custom_components/att_router_reboot/quality_scale.yaml`. Every rule is
-listed; a rule marked `todo` says what is missing. The badge itself is only
-awarded to core integrations, so the manifest claims no tier.
+listed; a rule marked `todo` says what is missing. Two are: `discovery` and
+`discovery-update-info`, for the reason under Known limitations. The badge
+itself is only awarded to core integrations, so the manifest claims no tier.
+
+`CHANGELOG.md` records what changed in each version.
 
 ## License
 
