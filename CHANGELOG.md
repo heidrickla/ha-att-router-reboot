@@ -7,6 +7,21 @@ version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 Version 0.1.0 is the version in `manifest.json`; it has no git tag or GitHub
 release yet, so HACS installs the default branch.
 
+## [Unreleased] - 2026-09-05
+
+### Changed
+
+- `discovery` and `discovery-update-info` in `quality_scale.yaml` move from
+  `todo` to `exempt`. The gateway was measured on 2026-09-05: in AT&T IP
+  passthrough mode it answers no SSDP search from either of two hosts that
+  reach it, serves no UPnP description on port 1900, 49152, 5000 or 80,
+  announces nothing over mDNS, and its web interface carries no UPnP settings
+  at all. The rule exempts a device that cannot be discovered, which this one
+  cannot.
+- README gains a Discovery section saying the gateway is added by address and
+  why nothing can find it, and its Known limitations and Quality scale sections
+  now match.
+
 ## [0.1.0] - 2026-09-04
 
 First working version. Everything below happened on the day the integration was
@@ -92,9 +107,7 @@ rather than a history of a released product.
 
 ### Known limitations
 
-- No discovery. A BGW advertises UPnP over SSDP, so the quality scale's
-  exemption does not apply, but an SSDP matcher needs the unit's own
-  `deviceType`, `manufacturer` and `modelName` strings and those have not been
-  measured from a host on the gateway's LAN. `discovery` and
-  `discovery-update-info` are filed `todo` with that reason rather than guessed
-  at.
+- No discovery. `discovery` and `discovery-update-info` were filed `todo`
+  pending a measurement from a host on the gateway's LAN. Superseded on
+  2026-09-05: the measurement was taken and both rules are now `exempt`, see
+  the entry above.

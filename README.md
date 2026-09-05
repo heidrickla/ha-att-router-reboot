@@ -87,6 +87,20 @@ unknown rather than as a wrong number.
 
 Only one gateway can be added to a Home Assistant instance.
 
+### Discovery
+
+There is none, and there cannot be: **add the gateway by address**. Measured on
+a BGW320-500 in AT&T IP passthrough mode on 2026-09-05, the gateway answers no
+SSDP search (`ssdp:all`, `upnp:rootdevice` and both InternetGatewayDevice
+targets were tried from two hosts that reach it, one of them over a route
+pinned to the WAN interface), serves no UPnP description on port 1900, 49152,
+5000 or 80, and announces nothing over mDNS. Its web interface has no UPnP
+settings at all. It is also the LAN's DHCP server rather than a client, so it
+never sends the DHCP request Home Assistant's DHCP discovery listens for.
+
+Nothing is lost by that: the address is `192.168.1.254` on an AT&T gateway
+unless you have changed it, and it is the default in the form.
+
 ### Installation parameters
 
 | Field | Default | What it is |
@@ -222,12 +236,9 @@ automation:
 - Verified only against BGW320-500 / 6.35.8. Other models render the same pages
   with small differences; the parser degrades to "unknown" on a field it does
   not recognise rather than reporting a wrong number.
-- No discovery. A BGW advertises UPnP over SSDP, so discovery is possible in
-  principle, but a matcher needs the unit's own deviceType, manufacturer and
-  modelName strings and those have not been measured from a host on the
-  gateway's LAN. A matcher guessed from a plausible service type would claim
-  other vendors' routers, so nothing is guessed. The gateway is at a
-  well-known address in the meantime.
+- No discovery, and none is possible: the gateway offers no SSDP, no UPnP and
+  no mDNS, and it is a DHCP server rather than a DHCP client. See Discovery
+  above for what was measured. Add it by address.
 
 ## Troubleshooting
 
@@ -277,9 +288,10 @@ host, serial, MAC and public IP address redacted.
 
 Built to Home Assistant's Integration Quality Scale, rule by rule, in
 `custom_components/att_router_reboot/quality_scale.yaml`. Every rule is
-listed; a rule marked `todo` says what is missing. Two are: `discovery` and
-`discovery-update-info`, for the reason under Known limitations. The badge
-itself is only awarded to core integrations, so the manifest claims no tier.
+listed; no rule is `todo`. `discovery` and `discovery-update-info` are `exempt`
+on the measurement under Discovery - the rule allows it for a device that
+cannot be discovered. The badge itself is only awarded to core integrations, so
+the manifest claims no tier.
 
 `CHANGELOG.md` records what changed in each version.
 
