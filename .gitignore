@@ -20,9 +20,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Agent instructions and per-checkout agent settings stay out of the published
-# tree. .claude/settings.local.json was held back only by a global ignore file,
-# which does not travel with the repository.
+# Agent instructions and per-checkout agent settings stay out of the tree.
 .claude/
 CLAUDE.md
 AGENTS.md

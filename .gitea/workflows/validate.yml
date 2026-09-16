@@ -1,12 +1,8 @@
 name: Validate
 
-# Runs on a self-hosted Gitea act_runner. The GitHub copy of this repository
-# runs .github/workflows/tests.yml on every push instead; that job is gated to
-# GitHub so it never lands on this runner.
-#
-# THE RUNNER IS SHARED AND ITS CAPACITY IS 1. Other agent sessions queue behind
-# anything pushed here, so an ordinary push runs ONE fast job. Anything that
-# installs Home Assistant is workflow_dispatch only.
+# The Gitea mirror runs this file. .github/workflows/tests.yml is gated to
+# GitHub and never runs here. Jobs that install Home Assistant are
+# workflow_dispatch only, so an ordinary push runs one fast job.
 
 on:
   push:
@@ -28,8 +24,7 @@ jobs:
         with:
           python-version: "3.14"
 
-      # Pinned: an unpinned linter makes CI non-reproducible, and this exact
-      # failure has already been paid for once on the sleepiq repo.
+      # Pinned: an unpinned linter makes CI non-reproducible.
       - name: Install ruff (PINNED)
         run: |
           python3 -m pip install --quiet --upgrade pip
@@ -53,8 +48,7 @@ jobs:
       - name: Offline validator
         run: python3 tools/validate_local.py
 
-  # Installs Home Assistant, so it is manual only and never occupies the shared
-  # runner on an ordinary push. This is the job that runs tests/ha/.
+  # Installs Home Assistant, so it is workflow_dispatch only. Runs tests/ha/.
   home-assistant:
     name: Home Assistant layer
     if: github.event_name == 'workflow_dispatch'
