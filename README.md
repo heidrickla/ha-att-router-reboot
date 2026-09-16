@@ -272,9 +272,14 @@ host, serial, MAC and public IP address redacted.
   `--cov`, then `tests/ha` with `--cov-append`) and the run fails below 95%.
   Measuring only the Home Assistant suite understates it, because those tests
   mock the client the pure suite exercises.
+- `pyproject.toml` loads `tests/winposix.py` with `-p tests.winposix`, which
+  runs the suite on a Windows workstation. Every function in it returns
+  immediately off Windows, so Linux and CI read the same suite.
 - `python tools/validate_local.py` runs the offline checks (manifest,
   translations, actions, icons, exception keys, the quality scale against the
-  pinned rule list) before a push.
+  pinned rule list) before a push. It also fails on a development host named
+  anywhere in the published tree, not only in `manifest.json`;
+  `tools/_netblocks.py` pins the address space it refuses.
 - `python tools/make_brand.py` regenerates the brand images.
 
 ## Quality scale
