@@ -15,8 +15,6 @@ branch.
 - `hacs.json` declares `"country": ["US"]`. The integration works only against
   an AT&T residential gateway, and AT&T sells that service only in the United
   States, so HACS's include rules require the key.
-- The licence moves from GPL-3.0 to MIT. No code in this repository was derived
-  from a GPL-licensed work.
 - `tools/validate_local.py` fails, rather than notes, when `documentation` or
   `issue_tracker` in `manifest.json` points at a private, loopback,
   link-local or reserved address, at `localhost`, at a `.local`, `.lan` or
