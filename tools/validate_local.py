@@ -13,11 +13,13 @@ push is not the first verification.
 from __future__ import annotations
 
 import ast
+import ipaddress
 import json
 import os
 import re
 import sys
 from typing import Any
+from urllib.parse import urlsplit
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DOMAIN = "att_router_reboot"
@@ -27,6 +29,11 @@ PLATFORMS = ("binary_sensor", "button", "sensor")
 # In-repo brand images are served by Home Assistant from this release on; an
 # older floor in hacs.json would advertise an install with no icon.
 BRAND_FLOOR = (2026, 3, 0)
+
+# Manifest URLs Home Assistant and HACS put in front of the user. A host only
+# the author can reach makes both links dead for everyone else.
+PUBLIC_URL_KEYS = ("documentation", "issue_tracker")
+PRIVATE_SUFFIXES = (".local", ".lan", ".internal")
 
 # hassfest requires these for a custom integration.
 REQUIRED_MANIFEST = [
@@ -177,6 +184,32 @@ def version_tuple(text: str) -> tuple[int, ...]:
     return tuple(int(p) for p in re.findall(r"\d+", text)[:3])
 
 
+def unroutable_host(url: str) -> str | None:
+    """The host of url when no user outside this network can resolve or reach it.
+
+    Covers the private, loopback, link-local and reserved ranges in both
+    address families, the names that only resolve on a LAN, and a bare
+    hostname, which is a search-domain lookup rather than a public name.
+    """
+    host = urlsplit(url).hostname
+    if not host:
+        return None
+    if host == "localhost" or host.endswith(PRIVATE_SUFFIXES):
+        return host
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return None if "." in host else host
+    if (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+    ):
+        return host
+    return None
+
+
 def main() -> int:
     manifest = read_json(COMP, "manifest.json")
     const_src = read(COMP, "const.py")
@@ -203,11 +236,16 @@ def main() -> int:
         keys[:2] == ["domain", "name"] and keys[2:] == sorted(keys[2:]),
         "manifest keys must be domain, name, then alphabetical (hassfest MANIFEST)",
     )
-    if re.search(
-        r"//(?:localhost|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)",
-        manifest.get("documentation", ""),
-    ):
-        notes.append("documentation URL points at a LAN host - useless to a user")
+    for url_key in PUBLIC_URL_KEYS:
+        url = manifest.get(url_key)
+        if not url:
+            continue
+        host = unroutable_host(url)
+        check(
+            host is None,
+            f"manifest {url_key} host {host!r} is not reachable from outside "
+            "this network - the link is dead for every other user",
+        )
     check(
         "quality_scale" not in manifest,
         "quality_scale in manifest.json: the badge is core-only, a custom "
@@ -235,6 +273,14 @@ def main() -> int:
     # ---------------------------------------------------------- hacs.json
     hacs = read_json(ROOT, "hacs.json")
     check("name" in hacs, "hacs.json must contain name")
+    # hacs.xyz/docs/publish/include: a repository for a single or limited set
+    # of countries must set country in the released hacs.json. The hacs/action
+    # does not check it; a reviewer does.
+    check(
+        "country" in hacs,
+        "hacs.json must contain country - this integration works only against "
+        "an AT&T gateway, which is sold only in the United States",
+    )
 
     # ---------------------------------------------------------- brand images
     brand = os.path.join(COMP, "brand")
