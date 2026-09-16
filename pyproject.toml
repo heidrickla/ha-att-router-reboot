@@ -17,25 +17,47 @@ asyncio_mode = "auto"
 # entry point plugins. Every function in it returns immediately off Windows.
 addopts = "-p tests.winposix"
 
-# `strict-typing` is the Platinum rule with teeth: Home Assistant runs mypy in
-# strict mode over integrations that claim it. Nothing below relaxes strict.
-# Without Home Assistant installed every class it exports is Any, so a local
-# run reports a handful of "subclassing Any" and "returning Any" lines that
-# are artefacts of the missing install; the CI job, which installs Home
-# Assistant, is the run that counts.
+# `strict-typing` is the Platinum rule with teeth. This is Home Assistant
+# core's generated mypy.ini [mypy] block at 2026.8.3, plus `strict`, which
+# covers the flags core lists individually. Dropped from core's block:
+# plugins, native_parser and num_workers, which are core-tree settings, and
+# warn_incomplete_stub, because core type-checks its own stubs.
+# Run it against an environment that has Home Assistant installed; without one
+# every class it exports is Any and the result says nothing.
 [tool.mypy]
-# Home Assistant 2026.x is written for 3.14; a lower target makes mypy stop at
-# its own source before it reaches this integration.
 python_version = "3.14"
+# A Windows workstation run and the Linux CI run resolve the same platform
+# branches.
+platform = "linux"
 strict = true
-warn_return_any = true
-disallow_untyped_defs = true
-disallow_any_generics = true
-no_implicit_reexport = true
-ignore_missing_imports = true
-follow_imports = "silent"
+local_partial_types = true
+no_implicit_optional = true
+strict_bytes = true
+# The only flag that reports a guard the lifecycle makes unreachable.
+warn_unreachable = true
+# Core's explicit value; `strict` would otherwise turn it on.
+extra_checks = false
+enable_error_code = [
+    "deprecated",
+    "explicit-override",
+    "ignore-without-code",
+    "redundant-self",
+    "truthy-iterable",
+]
+# Core's exact three. Broader suppression cannot tell an unresolvable import
+# from an untyped one.
+disable_error_code = ["annotation-unchecked", "import-not-found", "import-untyped"]
+follow_imports = "normal"
+show_error_codes = true
 
+# The tests are not the integration; CI checks custom_components/<domain> and
+# never reaches here. `strict` is not a per-module key: mypy 1.18.2 accepts a
+# section containing it without a warning and discards the whole section,
+# taking the relaxations beside it.
 [[tool.mypy.overrides]]
 module = "tests.*"
-strict = false
 disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_incomplete_defs = false
+disallow_any_generics = false
+warn_return_any = false

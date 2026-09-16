@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from html.parser import HTMLParser
+from typing import override
 
 import aiohttp
 
@@ -61,6 +62,7 @@ class _FormParser(HTMLParser):
         self._submit: tuple[str, str] | None = None
         self._in_form = False
 
+    @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         a = {k: (v or "") for k, v in attrs}
         if tag == "form" and not self._in_form:
@@ -79,6 +81,7 @@ class _FormParser(HTMLParser):
             else:
                 self.fields[name] = a.get("value", "")
 
+    @override
     def handle_endtag(self, tag: str) -> None:
         if tag == "form":
             self._in_form = False

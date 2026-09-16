@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import override
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -49,6 +50,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
         self.client = client
         self.model_info: dict[str, str] = {}
 
+    @override
     async def _async_setup(self) -> None:
         """One-time model lookup, so device_info is populated from first load."""
         try:
@@ -58,6 +60,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
             # the device page, so a miss here should not block setup.
             _LOGGER.debug("Could not read model info: %s", err)
 
+    @override
     async def _async_update_data(self) -> GatewayData:
         try:
             uptime = await self.client.async_get_uptime()

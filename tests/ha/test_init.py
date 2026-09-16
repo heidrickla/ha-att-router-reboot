@@ -18,9 +18,6 @@ from custom_components.att_router_reboot.api import (
     AttRouterConnectionError,
     AttRouterError,
 )
-from custom_components.att_router_reboot.binary_sensor import (
-    AttRouterWanConnectedSensor,
-)
 from custom_components.att_router_reboot.const import (
     CONF_SCHEDULE,
     DOMAIN,
@@ -31,7 +28,6 @@ from custom_components.att_router_reboot.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 from custom_components.att_router_reboot.models import GatewayData
-from custom_components.att_router_reboot.sensor import SENSORS, AttRouterSensor
 
 from .conftest import (
     BROADBAND,
@@ -324,16 +320,6 @@ async def test_changing_the_options_reloads_the_entry(hass, config_entry, gatewa
     await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.LOADED
     assert config_entry.runtime_data is not first
-
-
-async def test_entities_read_unknown_before_the_first_poll(hass, config_entry, gateway):
-    """Every value comes from coordinator.data, which is None until the first
-    refresh lands. Nothing may invent a zero in that window."""
-    await _setup(hass, config_entry, gateway)
-    coordinator = config_entry.runtime_data
-    coordinator.data = None
-    assert AttRouterWanConnectedSensor(coordinator).is_on is None
-    assert AttRouterSensor(coordinator, SENSORS[0]).native_value is None
 
 
 async def test_diagnostics_redact_what_identifies_the_household(

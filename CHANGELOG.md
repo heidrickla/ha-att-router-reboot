@@ -43,8 +43,25 @@ branch.
   pytest handles before entry point plugins, because `homeassistant/runner.py`
   imports `fcntl` while the harness plugin is still loading. Every function in
   it returns immediately off Windows, so Linux and CI are unaffected. Observed
-  2026-09-16: 86 tests passed under Python 3.14.7 with
+  2026-09-16: 85 tests passed under Python 3.14.7 with
   pytest-homeassistant-custom-component 0.13.357.
+- `pyproject.toml` carries Home Assistant core's own generated `[mypy]` block at
+  2026.8.3 plus `strict`. It adds `platform`, `local_partial_types`,
+  `no_implicit_optional`, `strict_bytes`, `warn_unreachable`, `extra_checks`,
+  `enable_error_code` and `show_error_codes`, replaces `ignore_missing_imports`
+  with core's `disable_error_code` list, and moves `follow_imports` from
+  `silent` to `normal`. The `tests.*` override drops `strict = false`: mypy
+  1.18.2 does not accept `strict` per module and silently discards the whole
+  section that holds it, taking the relaxations beside it.
+- Eleven methods gain `@typing.override`, which `enable_error_code` now
+  requires.
+- `AttRouterSensor.native_value` and `AttRouterWanConnectedSensor.is_on` drop
+  their `coordinator.data is None` guards, which `warn_unreachable` reports as
+  dead code. `async_config_entry_first_refresh` raises `ConfigEntryNotReady`
+  when the first poll fails, so setup aborts and no entity is constructed;
+  three tests assert `ConfigEntryState.SETUP_RETRY` on that path. The guard in
+  `coordinator._async_update_data` is kept: it runs during the first refresh,
+  where `self.data` is genuinely `None`.
 
 ## [0.2.0] - 2026-09-05
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, override
 
 import voluptuous as vol
 from aiohttp import CookieJar
@@ -108,6 +108,7 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
             return {"base": "unknown"}
         return {}
 
+    @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -184,6 +185,7 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
+    @override
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         return AttRouterOptionsFlow()
 

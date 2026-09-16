@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import override
+
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -31,6 +33,7 @@ class AttRouterRebootButton(AttRouterEntity, ButtonEntity):
     def __init__(self, coordinator: AttRouterCoordinator) -> None:
         super().__init__(coordinator, "reboot")
 
+    @override
     async def async_press(self) -> None:
         # Raises a translated HomeAssistantError and starts reauth on a
         # rejected code; see the coordinator.

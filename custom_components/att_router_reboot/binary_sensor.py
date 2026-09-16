@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import override
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -46,10 +48,12 @@ class AttRouterReachableSensor(AttRouterEntity, BinarySensorEntity):
         super().__init__(coordinator, "reachable")
 
     @property
+    @override
     def available(self) -> bool:
         return True
 
     @property
+    @override
     def is_on(self) -> bool:
         return self.coordinator.last_update_success
 
@@ -68,7 +72,6 @@ class AttRouterWanConnectedSensor(AttRouterEntity, BinarySensorEntity):
         super().__init__(coordinator, "wan_connected")
 
     @property
+    @override
     def is_on(self) -> bool | None:
-        if self.coordinator.data is None:
-            return None
         return self.coordinator.data.broadband.connection_up
