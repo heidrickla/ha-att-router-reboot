@@ -134,7 +134,11 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Change the address or access code without re-adding the entry."""
+        """Change the access code or the certificate check without re-adding.
+
+        The entry is keyed on the host, so a changed address aborts with
+        another_gateway rather than following the gateway.
+        """
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
