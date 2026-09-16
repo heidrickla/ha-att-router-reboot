@@ -365,7 +365,7 @@ def published_files() -> list[str]:
             text=True,
             timeout=30,
         )
-    except (OSError, _subprocess.SubprocessError):
+    except OSError, _subprocess.SubprocessError:
         listing = None
     if listing is not None and listing.returncode == 0:
         paths = [p for p in listing.stdout.split("\0") if p]
@@ -473,7 +473,7 @@ def scan_published_tree() -> None:
             continue
         try:
             text = read(full)
-        except (OSError, UnicodeDecodeError):
+        except OSError, UnicodeDecodeError:
             continue
         seen += 1
         for number, host in tree_hits(text, name_re):

@@ -260,5 +260,5 @@ class AttRouterClient:
                 # rejection status is an error.
                 if resp.status not in (200, 302):
                     raise AttRouterError(f"reboot returned HTTP {resp.status}")
-        except (aiohttp.ClientError, TimeoutError):
+        except aiohttp.ClientError, TimeoutError:
             _LOGGER.debug("Connection dropped during reboot, as expected")

@@ -63,7 +63,7 @@ class _Resp:
     async def text(self) -> str:
         return self._text
 
-    async def __aenter__(self) -> "_Resp":
+    async def __aenter__(self) -> _Resp:
         return self
 
     async def __aexit__(self, *exc: object) -> None:

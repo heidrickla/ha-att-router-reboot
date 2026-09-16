@@ -65,6 +65,15 @@ branch.
   three tests assert `ConfigEntryState.SETUP_RETRY` on that path. The guard in
   `coordinator._async_update_data` is kept: it runs during the first refresh,
   where `self.data` is genuinely `None`.
+- `pyproject.toml` gains a `[project]` table holding the repository name, the
+  version and the description. `tools/validate_local.py` cross-checks a
+  `[project]` version against the manifest, so the version now has to agree
+  across three files: `manifest.json`, `const.VERSION` and `[project] version`.
+- Ruff targets `py314`, the interpreter CI installs and the one `[tool.mypy]`
+  pins as `python_version`. Home Assistant 2026.3.0, the floor `hacs.json`
+  declares, requires Python 3.14.2, so the unparenthesized `except` group the
+  formatter writes in `api.py` and the unquoted self-referential annotation in
+  `tests/test_api.py` parse on every install that meets that floor.
 
 ## [0.2.0] - 2026-09-05
 
