@@ -296,3 +296,6 @@ This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. See [LICENSE](LICENSE) for the full text.
+
+The captured gateway page at `tests/fixtures/restart_login.html` keeps its
+vendor's BSD-licensed md5.js. [NOTICE](NOTICE) names it.
