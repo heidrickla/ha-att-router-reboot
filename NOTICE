@@ -1,8 +1,8 @@
 ha-att-router-reboot
-Copyright (C) 2026 Lewis Heidrick
+Copyright (c) 2026 Lewis Heidrick
 
-The project licence is GPL-3.0-or-later. LICENSE carries the text and covers
-every file except the third-party code listed below.
+The project licence is MIT. LICENSE carries the text and covers every file
+except the third-party code listed below.
 
 tests/fixtures/restart_login.html is a page captured verbatim from an AT&T
 BGW320-500 gateway on firmware 6.35.8. It embeds md5.js version 2.2, copyright
