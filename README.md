@@ -1,18 +1,17 @@
 # AT&T Router Reboot for Home Assistant
 
-Local (no cloud) Home Assistant custom integration to **reboot an AT&T
-residential gateway** on demand or on a schedule, and to watch its uptime and
-broadband statistics. Built and verified against a **BGW320-500** on firmware
-6.35.8; other BGW-series gateways share the same web interface and should work,
-but are untested here.
+Home Assistant custom integration to reboot an AT&T residential gateway on
+demand or on a schedule, and to watch its uptime and broadband statistics.
+Built and verified against a BGW320-500 on firmware 6.35.8. Other BGW-series
+gateways share the same web interface; see Supported devices.
 
-Everything talks to the gateway over your local network - no AT&T account, no
+Everything talks to the gateway over your local network. No AT&T account, no
 cloud.
 
 ## What you get
 
 One device, "AT&T Gateway", with these entities. All of the sensors are read
-from pages the gateway serves **without a login**, so they work even before
+from pages the gateway serves without a login, so they work even before
 you have entered an access code, and a wrong code never blanks them.
 
 | Entity | Type | What it is |
@@ -44,8 +43,8 @@ rather than an unknown-action error.
 | Gateway | Firmware | Status |
 |---|---|---|
 | BGW320-500 | 6.35.8 | Verified: the parser and the login are built against pages recorded from this unit. |
-| BGW320-505 | any | Same web interface. Untested. |
-| BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). Untested. |
+| BGW320-505 | any | Same web interface. No report from one as of 2026-09-16; open an issue if you run it. |
+| BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). No report from one as of 2026-09-16. |
 
 The gateway must serve its web interface over HTTPS on its LAN address, which
 every BGW does by default. A field the parser does not recognise reads as
@@ -69,9 +68,8 @@ unknown rather than as a wrong number.
 - An AT&T gateway reachable on your LAN, usually at `192.168.1.254`. Home
   Assistant must be able to reach that address - on a segmented network, put
   Home Assistant where it can route to the gateway.
-- The **device access code** printed on the gateway's label. This is what its
-  web interface logs in with; it is only needed for the reboot, not for the
-  statistics.
+- The device access code printed on the gateway's label. This is what its web
+  interface logs in with. It is needed for the reboot, not for the statistics.
 
 ## Installation
 
@@ -82,14 +80,14 @@ unknown rather than as a wrong number.
 3. Settings -> Devices & services -> Add integration -> "AT&T Router Reboot".
 4. Enter the gateway address and the device access code. The integration logs
    in before it saves anything, so a wrong code is caught here.
-5. Optionally open the integration's **Configure** to set an automatic reboot
-   schedule.
+5. Open the integration's Configure to set an automatic reboot schedule. This
+   step is optional.
 
 Only one gateway can be added to a Home Assistant instance.
 
 ### Discovery
 
-There is none, and there cannot be: **add the gateway by address**. Measured on
+There is none, and there cannot be. Add the gateway by address. Measured on
 a BGW320-500 in AT&T IP passthrough mode on 2026-09-05, the gateway answers no
 SSDP search (`ssdp:all`, `upnp:rootdevice` and both InternetGatewayDevice
 targets were tried from two hosts that reach it, one of them over a route
@@ -97,9 +95,6 @@ pinned to the WAN interface), serves no UPnP description on port 1900, 49152,
 5000 or 80, and announces nothing over mDNS. Its web interface has no UPnP
 settings at all. It is also the LAN's DHCP server rather than a client, so it
 never sends the DHCP request Home Assistant's DHCP discovery listens for.
-
-Nothing is lost by that: the address is `192.168.1.254` on an AT&T gateway
-unless you have changed it, and it is the default in the form.
 
 ### Installation parameters
 
@@ -119,17 +114,16 @@ Settings -> Devices & services -> AT&T Router Reboot -> Configure.
 | Time of day | 04:00:00 | Local time at which a scheduled reboot runs. Ignored when the schedule is off. |
 | Day of week | Sunday | Used only by a weekly schedule. |
 
-A scheduled reboot is **skipped when the gateway has been up for less than 30
-minutes**, so a schedule firing right after a manual reboot, or a gateway stuck
-in a restart loop, cannot keep power-cycling the one device the house depends
-on for internet. The skip is logged at info.
+A scheduled reboot is skipped when the gateway has been up for less than 30
+minutes. That stops a schedule firing right after a manual reboot, or a gateway
+stuck in a restart loop, from power-cycling the one device the house depends on
+for internet. The skip is logged at info.
 
-If a scheduled reboot **fails**, a repair notice appears under Settings ->
-System -> Repairs saying so, because nobody is watching a timer fire at four in
-the morning. It names the error, says what to check, and clears itself the next
-time a scheduled reboot succeeds. A rejected access code is the one exception:
-that raises a re-authentication prompt instead, which is the more useful thing
-to be asked.
+A failed scheduled reboot raises a repair notice under Settings -> System ->
+Repairs, because nobody is watching a timer fire at four in the morning. The
+notice names the error, says what to check, and clears itself the next time a
+scheduled reboot succeeds. A rejected access code raises a re-authentication
+prompt instead.
 
 ### Reconfiguring
 
@@ -152,21 +146,20 @@ restart Home Assistant.
 
 ## How it updates
 
-- **Statistics** are polled every **two minutes** from `sysinfo.ha` and
+- Statistics are polled every two minutes from `sysinfo.ha` and
   `broadbandstatistics.ha`, which the gateway serves without authentication.
   Model, serial, firmware and MAC are read once when the entry loads. If the
   broadband page cannot be read, the last statistics are kept and uptime is
-  still updated; if the uptime page cannot be read, everything but Reachable
+  still updated. If the uptime page cannot be read, everything but Reachable
   becomes unavailable and the log says so once.
-- **Reboot** happens only when asked: the button, the action or the schedule.
-  It logs in the way the gateway's own web page does - the access code is
-  hashed (`md5(code + nonce)`) against a per-request nonce, over a session of
-  its own that keeps the gateway's cookie - and then **replays the gateway's
-  own restart form** rather than posting a hardcoded body. If a firmware
-  update renames a form field, replaying still submits the right thing; a
-  hardcoded guess against the device the whole house routes through would
-  not. A refresh is requested straight after, so Uptime shows the reset
-  within a poll or two of the gateway coming back.
+- Reboot happens only when asked: the button, the action or the schedule. It
+  logs in the way the gateway's own web page does. The access code is hashed
+  (`md5(code + nonce)`) against a per-request nonce, over a session of its own
+  that keeps the gateway's cookie. It then replays the gateway's own restart
+  form rather than posting a hardcoded body. If a firmware update renames a
+  form field, replaying still submits the right thing. A refresh is requested
+  straight after, so Uptime shows the reset within a poll or two of the gateway
+  coming back.
 
 ## Examples
 
@@ -246,13 +239,13 @@ automation:
 |---|---|
 | Setup says "Could not reach the gateway at that address" | Home Assistant cannot route to the gateway, or the address is wrong. Open `https://<address>/` from the Home Assistant host's network; the BGW answers on 443 only. |
 | Setup says "The access code was rejected" | The code is the **Device Access Code** on the gateway's label, not the Wi-Fi password. If you changed it in the gateway's web interface, use the new one. |
-| Setup says "Unexpected error talking to the gateway" | The gateway answered with a page the integration did not expect. The log has the detail. The usual one is the gateway's "please enable cookies" page, which means the session cookie is not round-tripping; this integration keeps cookies for the gateway's IP address on purpose, so if you see it, the gateway's firmware has changed and the log line is what to report. |
+| Setup says "Unexpected error talking to the gateway" | The gateway answered with a page the integration did not expect; the log has the detail. The usual one is its "please enable cookies" page, meaning the session cookie is not round-tripping. This integration keeps cookies for the gateway's IP address on purpose, so that page means the firmware has changed. Report the log line. |
 | Setup fails with the certificate check on | The gateway's certificate is self-signed. Turn the check off unless you installed your own trusted certificate on the gateway. |
 | Everything is unavailable except Reachable, which is off | The gateway is not answering. The log has one line saying so and one when it recovers. |
 | Internet connection is off but the sensors update | The gateway is up and its upstream is down. This is the case the Reboot button is for. |
 | The Reboot button did nothing; Uptime did not reset | Look for "reboot returned HTTP" or "still on the login form" in the log. The first means the gateway refused the form; the second means the login did not stick and a reauth prompt has been raised. |
 | The action says the integration is not loaded | The config entry is disabled, failed to set up or is still retrying. Its card under Devices & services says why. |
-| A scheduled reboot did not happen | Either the gateway had been up for less than 30 minutes (logged at info as skipped), or the weekly schedule's day did not match. If it was attempted and failed, there is a repair notice under Settings -> System -> Repairs with the error in it. |
+| A scheduled reboot did not happen | The gateway had been up for less than 30 minutes, logged at info as skipped, or the weekly schedule's day did not match. An attempt that failed raises a repair notice carrying the error. |
 
 For more detail:
 
