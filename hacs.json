@@ -1,5 +1,6 @@
 {
   "name": "AT&T Router Reboot",
+  "country": ["US"],
   "render_readme": true,
   "homeassistant": "2026.3.0"
 }
