@@ -4,9 +4,26 @@ All notable changes to this integration are recorded here, newest first. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Version 0.2.0 is the version in `manifest.json` and in `const.VERSION`, and it
-is the first tagged GitHub release, so HACS installs it rather than the default
+The newest version below is the version in `manifest.json` and in
+`const.VERSION`. HACS installs the tagged release rather than the default
 branch.
+
+## [0.2.1] - 2026-09-16
+
+### Changed
+
+- `hacs.json` declares `"country": ["US"]`. The integration works only against
+  an AT&T residential gateway, and AT&T sells that service only in the United
+  States, so HACS's include rules require the key.
+- The licence moves from GPL-3.0 to MIT. No code in this repository was derived
+  from a GPL-licensed work.
+- `tools/validate_local.py` fails, rather than notes, when `documentation` or
+  `issue_tracker` in `manifest.json` points at a private, loopback,
+  link-local or reserved address, at `localhost`, at a `.local`, `.lan` or
+  `.internal` name, or at a bare hostname. It also requires `country` in
+  `hacs.json`.
+- Diagnostics redact the config entry's options with the same key set as its
+  data.
 
 ## [0.2.0] - 2026-09-05
 
@@ -42,7 +59,7 @@ rather than a history of a released product.
   byte counters (shown in GB) and the IPv4 error counters, plus Reachable and
   Internet connection binary sensors. Reachable stays available while the rest
   go unavailable, so the fault itself is visible.
-- A repair notice when a **scheduled** reboot fails, because nobody is watching
+- A repair notice when a scheduled reboot fails, because nobody is watching
   a timer fire. It names the error, says what to check, and clears itself the
   next time a scheduled reboot succeeds. A rejected access code raises a
   re-authentication prompt instead.
@@ -68,7 +85,7 @@ rather than a history of a released product.
 
 ### Changed
 
-- Minimum Home Assistant is **2026.3.0** (`hacs.json`). The code needs 2025.3
+- Minimum Home Assistant is 2026.3.0 (`hacs.json`). The code needs 2025.3
   for `AddConfigEntryEntitiesCallback`; 2026.3 is the release that serves the
   in-repo brand images.
 - The access code is a masked password field in the setup, reconfigure and
@@ -85,12 +102,12 @@ rather than a history of a released product.
 
 ### Fixed
 
-- **The reboot could not work at all.** aiohttp's default cookie jar discards
+- The reboot could not work at all. aiohttp's default cookie jar discards
   cookies set by an IP-address host, and the gateway is addressed by IP, so its
   `SessionID` never came back and the gateway served its "enable cookies" stub.
   Both sessions now come from `async_create_clientsession` with
   `cookie_jar=CookieJar(unsafe=True)`.
-- **The setup form accepted any access code.** A login now has to produce the
+- The setup form accepted any access code. A login now has to produce the
   authenticated restart form; the cookies stub and a re-served login form both
   fail.
 - The public WAN IPv4 address was not redacted from diagnostics: the redaction
