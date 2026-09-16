@@ -12,6 +12,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# tests/winposix.py replaces fcntl and resource before Home Assistant is
+# imported, which a conftest is too late to do; pytest handles -p before
+# entry point plugins. Every function in it returns immediately off Windows.
+addopts = "-p tests.winposix"
 
 # `strict-typing` is the Platinum rule with teeth: Home Assistant runs mypy in
 # strict mode over integrations that claim it. Nothing below relaxes strict.

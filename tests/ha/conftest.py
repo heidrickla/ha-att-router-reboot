@@ -22,6 +22,11 @@ from custom_components.att_router_reboot.const import (
     DOMAIN,
 )
 from custom_components.att_router_reboot.models import BroadbandStats
+from tests.winposix import install_ha_layer_shims
+
+# Both shims act when an event loop is built, which is a test run rather than
+# this import, so below the imports is as early as above them.
+install_ha_layer_shims()
 
 HOST = "192.168.1.254"
 FIX = pathlib.Path(__file__).resolve().parent.parent / "fixtures"

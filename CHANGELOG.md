@@ -36,6 +36,15 @@ branch.
   so, and fails if it read no files.
 - Diagnostics redact the config entry's options with the same key set as its
   data.
+- `tests/winposix.py` runs the suite on a Windows workstation. It stands in for
+  `fcntl` and `resource`, lets `socket.socketpair()` past the harness's socket
+  block for that one call, and puts the suite on the selector event loop, which
+  `aiodns` needs. `pyproject.toml` loads it with `-p tests.winposix`, which
+  pytest handles before entry point plugins, because `homeassistant/runner.py`
+  imports `fcntl` while the harness plugin is still loading. Every function in
+  it returns immediately off Windows, so Linux and CI are unaffected. Observed
+  2026-09-16: 86 tests passed under Python 3.14.7 with
+  pytest-homeassistant-custom-component 0.13.357.
 
 ## [0.2.0] - 2026-09-05
 
