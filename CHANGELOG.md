@@ -43,8 +43,7 @@ branch.
 ## [0.1.0] - 2026-09-04
 
 First working version. Everything below happened on the day the integration was
-written and reviewed against the Integration Quality Scale, so it is one entry
-rather than a history of a released product.
+written and reviewed against the Integration Quality Scale.
 
 ### Added
 

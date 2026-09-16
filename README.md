@@ -23,7 +23,7 @@ you have entered an access code, and a wrong code never blanks them.
 | Downstream data, Upstream data | sensor | IPv4 byte counters, shown in GB. They reset when the gateway reboots. |
 | Receive errors, Transmit errors | sensor | IPv4 error counters. |
 | Reachable | binary sensor | On when the gateway answered the last poll. Stays available while everything else is unavailable, so the fault is visible. |
-| Internet connection | binary sensor | On when the gateway reports its broadband link up. Deliberately separate from Reachable: a gateway can answer perfectly while its upstream is down, and that difference is the whole point of a router-reboot integration. |
+| Internet connection | binary sensor | On when the gateway reports its broadband link up. Deliberately separate from Reachable: a gateway can answer perfectly while its upstream is down. |
 
 Uptime, the WAN address, the line rate and all of the counters are diagnostic
 entities; Reboot and Internet connection are the ones for a dashboard.

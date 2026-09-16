@@ -5,13 +5,10 @@ kept deliberately small: read the uptime (no login), and reboot (login, then
 replay the device's own restart form). No third-party dependency - aiohttp,
 hashlib and the standard library cover it.
 
-Two design choices worth stating, because each is load-bearing:
-
 - The reboot REPLAYS the device's form. After logging in, the client fetches
   restart.ha, reads its action, every hidden input and the submit button, and
   posts exactly those back. Hardcoding a body would break on the next firmware
-  that renames a field, and a wrong POST to the gateway the whole house routes
-  through is not a place to guess.
+  that renames a field.
 - The session cookie MUST round-trip. The first GET sets an HttpOnly SessionID;
   without it returning on the next request the gateway serves a form-less
   "enable cookies" stub. The gateway is addressed by IP, and aiohttp's default

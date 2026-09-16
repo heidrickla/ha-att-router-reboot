@@ -5,9 +5,10 @@ the button entity, and that stays available. But this integration exists for a
 device whose owner may not write automations, so an off/daily/weekly schedule
 lives in the options flow and is honoured here.
 
-The guard matters: a scheduled reboot is skipped unless the gateway has been up
-long enough, so the schedule cannot power-cycle the house's only internet
-connection in a loop if it fires right after a manual reboot or a restart storm.
+A scheduled reboot is skipped unless the gateway has been up for at least
+const.MIN_UPTIME_FOR_SCHEDULED_REBOOT, 30 minutes, so the schedule cannot
+power-cycle the house's only internet connection in a loop if it fires right
+after a manual reboot or a restart storm.
 """
 
 from __future__ import annotations

@@ -58,8 +58,7 @@ rules:
     comment: |
       The flow logs in against the gateway and then insists on the restart
       form as the proof (api.AttRouterClient._restart_form). The
-      cookies-disabled stub and a re-served login form both fail; a missing
-      password field alone is no longer read as success.
+      cookies-disabled stub and a re-served login form both fail.
   test-before-setup:
     status: done
     comment: |

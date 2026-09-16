@@ -58,8 +58,7 @@ class AttRouterWanConnectedSensor(AttRouterEntity, BinarySensorEntity):
     """On when the gateway reports its broadband (WAN) connection as up.
 
     Distinct from reachability: the gateway can answer perfectly while its
-    upstream fibre/ethernet link is down, and that difference is the whole
-    point of a router-reboot integration.
+    upstream fibre/ethernet link is down.
     """
 
     _attr_translation_key = "wan_connected"
