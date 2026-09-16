@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiohttp import CookieJar
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
 from homeassistant.exceptions import (
     ConfigEntryNotReady,
     HomeAssistantError,
@@ -351,3 +351,17 @@ async def test_diagnostics_redact_what_identifies_the_household(
     assert report["data"]["broadband"]["speed_mbps"] == 1000
     assert report["model_info"]["model"] == "BGW320-500"
     assert report["last_update_success"] is True
+
+
+async def test_diagnostics_redact_the_options_as_well_as_the_data(
+    hass, config_entry, gateway
+):
+    """A key that identifies the household does so wherever it is stored."""
+    await _setup(hass, config_entry, gateway)
+    hass.config_entries.async_update_entry(
+        config_entry, options={CONF_SCHEDULE: SCHEDULE_DAILY, CONF_HOST: HOST}
+    )
+    await hass.async_block_till_done()
+    report = await async_get_config_entry_diagnostics(hass, config_entry)
+    assert HOST not in str(report)
+    assert report["options"][CONF_SCHEDULE] == SCHEDULE_DAILY

@@ -25,7 +25,7 @@ async def async_get_config_entry_diagnostics(
     data = asdict(coordinator.data) if coordinator.data is not None else None
     return {
         "config": async_redact_data(dict(entry.data), REDACT),
-        "options": dict(entry.options),
+        "options": async_redact_data(dict(entry.options), REDACT),
         "data": async_redact_data(data, REDACT),
         "last_update_success": coordinator.last_update_success,
         "model_info": async_redact_data(coordinator.model_info, REDACT),
