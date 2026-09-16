@@ -166,9 +166,9 @@ def test_a_login_that_lands_back_on_the_login_form_is_an_auth_error():
 
 
 def test_login_needs_the_restart_form_as_proof_not_just_a_missing_password_field():
-    """The cookies-disabled stub has no nonce and no hashpassword. It used to
-    read as 'already logged in'; now it is the failure it is, and not an auth
-    failure, since no code was ever checked."""
+    """The cookies-disabled stub has no nonce and no hashpassword, which is the
+    shape of a logged-in page. Proof of login is the restart form, so the stub
+    raises AttRouterError and not AttRouterAuthError: no code was checked."""
     session = _Session(
         pages=[(200, COOKIE_STUB), (200, COOKIE_STUB)],
         post_result=(200, "never"),
