@@ -20,10 +20,20 @@ branch.
   from a GPL-licensed work. `NOTICE` names the one third-party file, a captured
   gateway page carrying BSD-licensed md5.js, which keeps its own licence.
 - `tools/validate_local.py` fails, rather than notes, when `documentation` or
-  `issue_tracker` in `manifest.json` points at a private, loopback,
-  link-local or reserved address, at `localhost`, at a `.local`, `.lan` or
-  `.internal` name, or at a bare hostname. It also requires `country` in
+  `issue_tracker` in `manifest.json` points at a private, CGNAT, loopback,
+  link-local, reserved, unspecified or unique-local address, at `localhost`, at
+  a `.corp`, `.home`, `.home.arpa`, `.intranet`, `.internal`, `.lan`, `.local`
+  or `.localdomain` name, or at a bare hostname. It also requires `country` in
   `hacs.json`.
+- `tools/validate_local.py` scans every text file `git ls-files` reports and
+  fails on a development host named anywhere in it, not only in the manifest.
+  Loopback, the unspecified address and `localhost` are allowed there: they
+  name no machine on this network and are ordinary in a socket test.
+  `192.168.1.254` and `10.0.0.1` are allow-listed with the reason on each line.
+  The refused address space is pinned in `tools/_netblocks.py`, the one
+  published file the scan skips, and the scan fails if that file grows anything
+  beyond the three pinned names. Without git the scan walks the tree and says
+  so, and fails if it read no files.
 - Diagnostics redact the config entry's options with the same key set as its
   data.
 
