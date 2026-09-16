@@ -24,16 +24,19 @@ branch.
   a `.corp`, `.home`, `.home.arpa`, `.intranet`, `.internal`, `.lan`, `.local`
   or `.localdomain` name, or at a bare hostname. It also requires `country` in
   `hacs.json`.
-- `tools/validate_local.py` scans every text file `git ls-files` reports and
-  fails on a development host named anywhere in it, not only in the manifest.
+- `tools/validate_local.py` scans every file `git ls-files` reports and fails
+  on a development host named anywhere in one, not only in the manifest.
+  Membership is decided by content, not by extension: the only files skipped
+  are `tools/_netblocks.py` and the ones whose bytes do not decode as text, so
+  a `Makefile`, a `Dockerfile`, a shell script and a `.env.example` are read.
   Loopback, the unspecified address and `localhost` are allowed there: they
   name no machine on this network and are ordinary in a socket test.
   `192.168.1.254` and `10.0.0.1` are allow-listed with the reason on each line.
-  The refused address space is pinned in `tools/_netblocks.py`, the one
-  published file the scan skips, and the scan fails if that file grows anything
-  beyond the three pinned names. The captured gateway pages under
-  `tests/fixtures/` are in the scan. Development host names are matched too,
-  read from `ATT_ROUTER_DEV_HOSTNAMES` rather than from a tracked file, because
+  The refused address space is pinned in `tools/_netblocks.py`, which the scan
+  skips because it would otherwise report itself, and the scan fails if that
+  file grows anything beyond the three pinned names. The captured gateway pages
+  under `tests/fixtures/` are in the scan. Development host names are matched
+  too, read from `ATT_ROUTER_DEV_HOSTNAMES` rather than a tracked file, because
   naming them in a published file is the disclosure the scan exists to prevent;
   the run prints how many it was given. Without git the scan walks the tree and
   says so, and fails if it read no files.
@@ -148,9 +151,10 @@ written and reviewed against the Integration Quality Scale.
 
 ### Changed
 
-- Minimum Home Assistant is 2026.3.0 (`hacs.json`). The code needs 2025.3
-  for `AddConfigEntryEntitiesCallback`; 2026.3 is the release that serves the
-  in-repo brand images.
+- Minimum Home Assistant is 2026.3.0 (`hacs.json`). At this release the code
+  needed 2025.3 for `AddConfigEntryEntitiesCallback`; 2026.3 is the release
+  that serves the in-repo brand images. 0.2.1 raised the code floor itself to
+  2026.3.0, the first release to require Python 3.14.2.
 - The access code is a masked password field in the setup, reconfigure and
   re-authentication forms, and is never sent back to the browser as a default
   or a suggested value.

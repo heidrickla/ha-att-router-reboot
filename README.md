@@ -25,8 +25,9 @@ you have entered an access code, and a wrong code never blanks them.
 | Reachable | binary sensor | On when the gateway answered the last poll. Stays available while everything else is unavailable, so the fault is visible. |
 | Internet connection | binary sensor | On when the gateway reports its broadband link up. Deliberately separate from Reachable: a gateway can answer perfectly while its upstream is down. |
 
-Uptime, the WAN address, the line rate and all of the counters are diagnostic
-entities; Reboot and Internet connection are the ones for a dashboard.
+Reboot and Internet connection are the dashboard entities. Everything else is
+diagnostic: Reachable, Uptime, the WAN address, the line rate and all of the
+counters.
 
 ### Actions
 
@@ -47,8 +48,7 @@ rather than an unknown-action error.
 | BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). No report from one as of 2026-09-16. |
 
 The gateway must serve its web interface over HTTPS on its LAN address, which
-every BGW does by default. A field the parser does not recognise reads as
-unknown rather than as a wrong number.
+every BGW does by default.
 
 ## Use cases
 
@@ -63,8 +63,9 @@ unknown rather than as a wrong number.
 
 ## Requirements
 
-- Home Assistant 2026.3 or newer. (The integration's own icon is served by
-  Home Assistant from that release on; the code needs 2025.3.)
+- Home Assistant 2026.3 or newer. The code needs Python 3.14.2, and 2026.3.0
+  is the first release to require it; the in-repo brand images are served from
+  the same release on.
 - An AT&T gateway reachable on your LAN, usually at `192.168.1.254`. Home
   Assistant must be able to reach that address - on a segmented network, put
   Home Assistant where it can route to the gateway.
@@ -281,8 +282,11 @@ host, serial, MAC and public IP address redacted.
   anywhere in the published tree, not only in `manifest.json`;
   `tools/_netblocks.py` pins the address space it refuses, and
   `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well. A run
-  without that variable checks addresses and URLs only and says so. Each
-  matcher is fired on a control line first, so a clean result means the scan
+  without that variable checks addresses and URLs only and says so. The scan
+  reads every file `git ls-files` reports except `tools/_netblocks.py` and the
+  ones whose bytes do not decode as text, so extension is not what decides
+  membership. The address matcher is fired on a control line first, and the
+  name matcher too when names were given, so a clean result means the scan
   matched something.
 - `python tools/make_brand.py` regenerates the brand images.
 
