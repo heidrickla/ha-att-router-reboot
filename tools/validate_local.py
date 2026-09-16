@@ -227,26 +227,10 @@ ALLOWED_HOSTS = frozenset(
 # comes from git rather than a walk: git already knows what is ignored, which
 # is how private operational notes under an ignored directory stay out, and
 # --others adds a file staged for this commit but not yet added.
-PUBLISHED_SUFFIXES = {
-    ".cfg",
-    ".html",
-    ".ini",
-    ".json",
-    ".md",
-    ".py",
-    ".toml",
-    ".txt",
-    ".yaml",
-    ".yml",
-}
-PUBLISHED_NAMES = {
-    ".gitattributes",
-    ".gitignore",
-    "CODEOWNERS",
-    "LICENSE",
-    "LICENSE-APACHE",
-    "NOTICE",
-}
+# Membership is decided by content, not by extension. A suffix allow-list let
+# a Makefile, a Dockerfile, a shell script and a .env.example through unread,
+# and a pass computed from files never opened prints the same line as a real
+# one. A file is skipped only when its bytes will not decode as text.
 # The one published file the scan skips: it holds the CIDRs the scan matches
 # on, so it would report itself. Nothing else may live in it.
 SCAN_EXEMPT = ("tools/_netblocks.py",)
@@ -351,7 +335,7 @@ def malformed_url(url: Any) -> bool:
 
 
 def published_files() -> list[str]:
-    """Every text file that ships, relative to ROOT, from git's own index.
+    """Every file that ships, relative to ROOT, from git's own index.
 
     Falls back to a walk when git is not there - an extracted tarball - so the
     rule still runs, and says so, rather than passing on an empty list.
@@ -382,15 +366,7 @@ def published_files() -> list[str]:
                 paths.append(
                     os.path.relpath(os.path.join(dirpath, f), ROOT).replace("\\", "/")
                 )
-    keep: list[str] = []
-    for path in paths:
-        if path in SCAN_EXEMPT:
-            continue
-        name = path.rsplit("/", 1)[-1]
-        suffix = os.path.splitext(name)[1].lower()
-        if suffix in PUBLISHED_SUFFIXES or name in PUBLISHED_NAMES:
-            keep.append(path)
-    return sorted(keep)
+    return sorted(p for p in paths if p not in SCAN_EXEMPT)
 
 
 def tree_hits(text: str, name_re: Any = None) -> list[tuple[int, str]]:
@@ -506,6 +482,8 @@ def scan_published_tree() -> None:
         try:
             text = read(full)
         except OSError, UnicodeDecodeError:
+            continue
+        if "\0" in text:
             continue
         seen += 1
         for number, host in tree_hits(text, name_re):
