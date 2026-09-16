@@ -280,7 +280,10 @@ host, serial, MAC and public IP address redacted.
   pinned rule list) before a push. It also fails on a development host named
   anywhere in the published tree, not only in `manifest.json`;
   `tools/_netblocks.py` pins the address space it refuses, and
-  `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well.
+  `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well. A run
+  without that variable checks addresses and URLs only and says so. Each
+  matcher is fired on a control line first, so a clean result means the scan
+  matched something.
 - `python tools/make_brand.py` regenerates the brand images.
 
 ## Quality scale
