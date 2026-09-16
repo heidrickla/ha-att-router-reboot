@@ -32,8 +32,12 @@ branch.
   `192.168.1.254` and `10.0.0.1` are allow-listed with the reason on each line.
   The refused address space is pinned in `tools/_netblocks.py`, the one
   published file the scan skips, and the scan fails if that file grows anything
-  beyond the three pinned names. Without git the scan walks the tree and says
-  so, and fails if it read no files.
+  beyond the three pinned names. The captured gateway pages under
+  `tests/fixtures/` are in the scan. Development host names are matched too,
+  read from `ATT_ROUTER_DEV_HOSTNAMES` rather than from a tracked file, because
+  naming them in a published file is the disclosure the scan exists to prevent;
+  the run prints how many it was given. Without git the scan walks the tree and
+  says so, and fails if it read no files.
 - Diagnostics redact the config entry's options with the same key set as its
   data.
 - `tests/winposix.py` runs the suite on a Windows workstation. It stands in for

@@ -229,6 +229,7 @@ ALLOWED_HOSTS = frozenset(
 # --others adds a file staged for this commit but not yet added.
 PUBLISHED_SUFFIXES = {
     ".cfg",
+    ".html",
     ".ini",
     ".json",
     ".md",
@@ -249,6 +250,8 @@ PUBLISHED_NAMES = {
 # The one published file the scan skips: it holds the CIDRs the scan matches
 # on, so it would report itself. Nothing else may live in it.
 SCAN_EXEMPT = ("tools/_netblocks.py",)
+# Development host names come from the environment, not from a tracked file.
+DEV_NAMES_ENV = "ATT_ROUTER_DEV_HOSTNAMES"
 
 IP_LITERAL_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 URL_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s\"'`<>)\]},]+")
@@ -417,6 +420,22 @@ def tree_hits(text: str, name_re: Any = None) -> list[tuple[int, str]]:
     return hits
 
 
+def internal_names() -> list[str]:
+    """Development host names the tree scan refuses, read from outside the tree.
+
+    Naming them in a published file is the disclosure this rule exists to
+    prevent, so they come from the environment: ATT_ROUTER_DEV_HOSTNAMES holds
+    them comma-separated, or holds a path to a file with one per line. A name
+    matches with any suffix, so "devbox" also catches "devbox-ci".
+    """
+    raw = os.environ.get(DEV_NAMES_ENV, "").strip()
+    if not raw:
+        return []
+    if os.path.isfile(raw):
+        raw = read(raw).replace("\n", ",")
+    return [n.strip().lower() for n in raw.split(",") if n.strip()]
+
+
 def scan_published_tree() -> None:
     """Refuse a development host anywhere in the published tree."""
     exempt = os.path.join(ROOT, *SCAN_EXEMPT[0].split("/"))
@@ -436,21 +455,18 @@ def scan_published_tree() -> None:
                     "the tree scan skips this file, so nothing else may live in it"
                 )
                 break
-    # A repository that knows its own development host names - read from
-    # outside the tree, because naming them in a published file is the
-    # disclosure this rule exists to prevent - has them matched as well.
+    names = internal_names()
     name_re = None
-    finder = globals().get("internal_names")
-    if callable(finder):
-        names = finder()
-        if names:
-            name_re = re.compile(
-                r"\b(?:" + "|".join(re.escape(n) for n in names) + r")\w*",
-                re.IGNORECASE,
-            )
-            notes.append(f"{len(names)} development host names given to the tree scan")
-        else:
-            notes.append("no development host names given to the tree scan")
+    if names:
+        name_re = re.compile(
+            r"\b(?:" + "|".join(re.escape(n) for n in names) + r")\w*",
+            re.IGNORECASE,
+        )
+        notes.append(f"{len(names)} development host names given to the tree scan")
+    else:
+        notes.append(
+            f"no development host names given to the tree scan; set {DEV_NAMES_ENV}"
+        )
     seen = 0
     for path in published_files():
         full = os.path.join(ROOT, *path.split("/"))

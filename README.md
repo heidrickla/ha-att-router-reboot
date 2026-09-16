@@ -279,7 +279,8 @@ host, serial, MAC and public IP address redacted.
   translations, actions, icons, exception keys, the quality scale against the
   pinned rule list) before a push. It also fails on a development host named
   anywhere in the published tree, not only in `manifest.json`;
-  `tools/_netblocks.py` pins the address space it refuses.
+  `tools/_netblocks.py` pins the address space it refuses, and
+  `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well.
 - `python tools/make_brand.py` regenerates the brand images.
 
 ## Quality scale
