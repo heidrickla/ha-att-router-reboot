@@ -127,13 +127,13 @@ rules:
       exempt from this rule." Measured on this gateway 2026-09-05, and it
       offers nothing to discover on.
 
-      The BGW320 runs in AT&T IP passthrough mode. Lewis logged into the
-      gateway web interface and found no UPnP settings at all, so UPnP is not
-      merely switched off, it is not a feature of this firmware. Unicast SSDP
-      M-SEARCH for ssdp:all, upnp:rootdevice, InternetGatewayDevice:1 and
-      InternetGatewayDevice:2 was sent from two different hosts that reach the
-      gateway over HTTPS, one of them over a policy route pinned to the WAN
-      interface, and got no reply on any search target. No UPnP description
+      The BGW320 runs in AT&T IP passthrough mode. The gateway web interface
+      exposes no UPnP settings at all, so UPnP is not merely switched off, it
+      is not a feature of this firmware. Unicast SSDP M-SEARCH for ssdp:all,
+      upnp:rootdevice, InternetGatewayDevice:1 and InternetGatewayDevice:2 was
+      sent from two different hosts that reach the gateway over HTTPS, one of
+      them over a policy route pinned to the WAN interface, and got no reply on
+      any search target. No UPnP description
       answered on port 1900, 49152, 5000 or 80. The gateway announces nothing
       over mDNS, and it is the LAN's DHCP server rather than a client, so it
       issues no DHCP request for Home Assistant's DHCP listener to see.
@@ -230,11 +230,14 @@ rules:
   strict-typing:
     status: done
     comment: |
-      pyproject.toml runs mypy strict with no relaxations, and the GitHub
-      Tests workflow runs it on Python 3.14 with Home Assistant 2026.8.3
-      installed, which is the run that means something: "Success: no issues
-      found in 14 source files" on run 33923274528. runtime-data uses the
-      typed AttRouterConfigEntry alias throughout. The rule's PEP-561 half is
+      pyproject.toml runs mypy strict over custom_components/ with no
+      relaxations. Its [[tool.mypy.overrides]] section relaxes five keys for
+      tests.* only, which neither CI nor this rule type-checks. The GitHub
+      Tests workflow runs mypy on Python 3.14 with Home Assistant 2026.8.3
+      installed, which is the run that means something. Measured 2026-09-16 on
+      Python 3.14.7, mypy 1.18.2 and Home Assistant 2026.8.3: "Success: no
+      issues found in 14 source files". runtime-data uses the typed
+      AttRouterConfigEntry alias throughout. The rule's PEP-561 half is
       about a separate library; the client here is in-repo and typed with the
       rest of the integration, and the .strict-typing registration it also
       asks for is a file in core, which a custom integration has no entry in.
