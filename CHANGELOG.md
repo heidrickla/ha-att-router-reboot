@@ -74,6 +74,20 @@ branch.
   declares, requires Python 3.14.2, so the unparenthesized `except` group the
   formatter writes in `api.py` and the unquoted self-referential annotation in
   `tests/test_api.py` parse on every install that meets that floor.
+- The tree scan fires each of its matchers on a synthetic line before it
+  reports a clean tree. The address control is the first address in the pinned
+  space that is not allow-listed. The name control is the first name the run
+  was given, so it runs only when names were given. Observed 2026-09-16:
+  breaking either matcher exits 1 naming the control that failed, and both
+  controls pass on the tree as it stands.
+- The note the scan prints when it is given no development host names says its
+  name half did not run, so an address-only scan does not read as a scan that
+  found nothing.
+- `tools/validate_local.py` fails when `pyproject.toml` has no `[project]`
+  version to cross-check, rather than skipping the check.
+- The docstring in `tools/validate_local.py` that describes the name matcher
+  names no example host. A real name there is the disclosure the scan exists to
+  prevent, and a fictional one misfires against a machine later named that.
 
 ## [0.2.0] - 2026-09-05
 

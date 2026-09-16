@@ -425,7 +425,10 @@ def internal_names() -> list[str]:
     Naming them in a published file is the disclosure this rule exists to
     prevent, so they come from the environment: ATT_ROUTER_DEV_HOSTNAMES holds
     them comma-separated, or holds a path to a file with one per line. A name
-    matches with any suffix, so "devbox" also catches "devbox-ci".
+    matches as the prefix of a longer word, so a bare name also catches the
+    same name carrying a digit or a -ci suffix. No example host is spelled out
+    here: a real name in this file is the disclosure, and a fictional one
+    misfires the day someone runs a machine by that name.
     """
     raw = os.environ.get(DEV_NAMES_ENV, "").strip()
     if not raw:
@@ -433,6 +436,32 @@ def internal_names() -> list[str]:
     if os.path.isfile(raw):
         raw = read(raw).replace("\n", ",")
     return [n.strip().lower() for n in raw.split(",") if n.strip()]
+
+
+def scan_controls(names: list[str], name_re: Any) -> None:
+    """Fire both matchers on synthetic input before a clean tree is believed.
+
+    A tree holding nothing and a matcher that matches nothing print the same
+    result. The control lines are built here and never written to a file.
+    """
+    net = next(n for n in TREE_NETS if n.version == 4)
+    address = next(
+        str(net.network_address + offset)
+        for offset in range(1, 16)
+        if str(net.network_address + offset) not in ALLOWED_HOSTS
+    )
+    check(
+        tree_hits(f"control line naming {address}") != [],
+        f"the tree scan did not match {address}, an address it refuses, so a "
+        "clean scan says nothing about the addresses in the tree",
+    )
+    if not names:
+        return
+    check(
+        tree_hits(f"control line naming {names[0]}-ci", name_re) != [],
+        f"the tree scan did not match {names[0]}, a name it was given, so a "
+        "clean scan says nothing about the names in the tree",
+    )
 
 
 def scan_published_tree() -> None:
@@ -464,8 +493,11 @@ def scan_published_tree() -> None:
         notes.append(f"{len(names)} development host names given to the tree scan")
     else:
         notes.append(
-            f"no development host names given to the tree scan; set {DEV_NAMES_ENV}"
+            "no development host names given to the tree scan, so its name half "
+            "did not run and this result covers addresses and URLs only; set "
+            f"{DEV_NAMES_ENV} to run the name half"
         )
+    scan_controls(names, name_re)
     seen = 0
     for path in published_files():
         full = os.path.join(ROOT, *path.split("/"))
@@ -532,12 +564,13 @@ def main() -> int:
         f"const.VERSION {const_version!r} != manifest version "
         f"{manifest.get('version')!r} - HA reports one and HACS the other",
     )
-    # pyproject carries no [project] table today; if one appears its version
-    # must not drift from the manifest either.
+    # Three files carry the version. HA reads the manifest, HACS reads the
+    # release, const.VERSION reaches diagnostics and pyproject names the repo.
     pyproject = read(ROOT, "pyproject.toml")
     m = re.search(
         r'^\[project\][^\[]*?^version\s*=\s*"([^"]+)"', pyproject, re.M | re.S
     )
+    check(m is not None, "pyproject.toml has no [project] version to cross-check")
     if m:
         check(
             m.group(1) == manifest.get("version"),
