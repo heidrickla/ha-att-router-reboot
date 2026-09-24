@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
@@ -13,12 +14,15 @@ from custom_components.att_router_reboot.const import (
     DOMAIN,
     ISSUE_SCHEDULED_REBOOT_FAILED,
     SCHEDULE_DAILY,
+    SCHEDULE_OFF,
     SCHEDULE_WEEKLY,
     WEEKDAYS,
 )
 from custom_components.att_router_reboot.models import GatewayData
 
 from .conftest import REBOOT
+
+BUTTON = "button.at_t_gateway_reboot"
 
 
 def _next_local(hour: int, minute: int) -> datetime:
@@ -168,6 +172,63 @@ async def test_a_later_successful_scheduled_reboot_clears_the_issue(
 
     with patch(REBOOT, AsyncMock()):
         await _fire_at(hass, fire + timedelta(days=1))
+    assert _issue(hass) is None
+
+
+async def _raise_the_issue(hass, entry, gateway) -> None:
+    from custom_components.att_router_reboot.api import AttRouterError
+
+    await _setup(
+        hass,
+        entry,
+        gateway,
+        {CONF_SCHEDULE: SCHEDULE_DAILY, CONF_SCHEDULE_TIME: "04:00:00"},
+        uptime=7200,
+    )
+    with patch(REBOOT, AsyncMock(side_effect=AttRouterError("no form"))):
+        await _fire_at(hass, _next_local(4, 0))
+    assert _issue(hass) is not None
+
+
+async def test_a_button_reboot_clears_the_issue(hass, config_entry, gateway):
+    """The issue text tells the user to press Reboot, so that must clear it."""
+    await _raise_the_issue(hass, config_entry, gateway)
+    with patch(REBOOT, AsyncMock()):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": BUTTON}, blocking=True
+        )
+    assert _issue(hass) is None
+
+
+async def test_a_failed_button_reboot_keeps_the_issue(hass, config_entry, gateway):
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.att_router_reboot.api import AttRouterError
+
+    await _raise_the_issue(hass, config_entry, gateway)
+    with (
+        patch(REBOOT, AsyncMock(side_effect=AttRouterError("no form"))),
+        pytest.raises(HomeAssistantError),
+    ):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": BUTTON}, blocking=True
+        )
+    assert _issue(hass) is not None
+
+
+async def test_turning_the_schedule_off_clears_the_issue(hass, config_entry, gateway):
+    await _raise_the_issue(hass, config_entry, gateway)
+    hass.config_entries.async_update_entry(
+        config_entry, options={CONF_SCHEDULE: SCHEDULE_OFF}
+    )
+    await hass.async_block_till_done()
+    assert _issue(hass) is None
+
+
+async def test_removing_the_entry_clears_the_issue(hass, config_entry, gateway):
+    await _raise_the_issue(hass, config_entry, gateway)
+    await hass.config_entries.async_remove(config_entry.entry_id)
+    await hass.async_block_till_done()
     assert _issue(hass) is None
 
 

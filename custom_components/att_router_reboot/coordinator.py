@@ -8,6 +8,7 @@ from typing import override
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -16,7 +17,7 @@ from .api import (
     AttRouterConnectionError,
     AttRouterError,
 )
-from .const import DOMAIN, SCAN_INTERVAL
+from .const import DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED, SCAN_INTERVAL
 from .models import GatewayData
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
         )
         self.client = client
         self.model_info: dict[str, str] = {}
+        self._broadband_available = True
 
     @override
     async def _async_setup(self) -> None:
@@ -79,14 +81,17 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
 
         # Broadband stats are a bonus, not a reason to fail the whole poll:
         # uptime is what the reboot logic and the schedule guard depend on.
+        # Logged once when the page is lost and once when it is back.
         try:
             broadband = await self.client.async_get_broadband()
         except AttRouterError as err:
-            _LOGGER.debug("Could not read broadband statistics: %s", err)
-            broadband = (
-                self.data.broadband if self.data else GatewayData(uptime).broadband
-            )
-
+            if self._broadband_available:
+                _LOGGER.info("Broadband statistics are unavailable: %s", err)
+                self._broadband_available = False
+            return GatewayData(uptime=uptime, broadband_read=False)
+        if not self._broadband_available:
+            _LOGGER.info("Broadband statistics are available again")
+            self._broadband_available = True
         return GatewayData(uptime=uptime, broadband=broadband)
 
     async def async_reboot(self) -> None:
@@ -110,4 +115,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
                 translation_key="reboot_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
+        # A reboot by any path clears the scheduled-reboot issue, which tells
+        # the user to press Reboot.
+        ir.async_delete_issue(self.hass, DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
         await self.async_request_refresh()

@@ -38,6 +38,7 @@ class AttRouterSensorDescription(SensorEntityDescription):
     """A sensor plus how to pull its value out of one poll."""
 
     value_fn: Callable[[GatewayData], int | str | None]
+    from_broadband: bool = True
 
 
 SENSORS: tuple[AttRouterSensorDescription, ...] = (
@@ -50,6 +51,7 @@ SENSORS: tuple[AttRouterSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=0,
         value_fn=lambda d: d.uptime,
+        from_broadband=False,
     ),
     AttRouterSensorDescription(
         key="wan_ip",
@@ -130,6 +132,14 @@ class AttRouterSensor(AttRouterEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, description.key)
         self.entity_description = description
+
+    @property
+    @override
+    def available(self) -> bool:
+        return super().available and (
+            not self.entity_description.from_broadband
+            or self.coordinator.data.broadband_read
+        )
 
     @property
     @override

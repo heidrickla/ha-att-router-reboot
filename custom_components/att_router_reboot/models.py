@@ -6,6 +6,7 @@ tested on a bare interpreter against saved HTML.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 
@@ -37,3 +38,11 @@ class GatewayData:
 
     uptime: int
     broadband: BroadbandStats = field(default_factory=BroadbandStats)
+    # False when the broadband page could not be read on this poll; the
+    # broadband entities are then unavailable rather than showing old values.
+    broadband_read: bool = True
+
+
+def gateway_identity(info: Mapping[str, str]) -> str | None:
+    """The config entry's unique id: serial number, else MAC, from sysinfo.ha."""
+    return info.get("serial") or (info.get("mac") or "").lower() or None

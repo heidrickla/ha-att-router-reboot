@@ -1,5 +1,6 @@
 """Setup, entities, the reboot action, reauth on a rejected code, diagnostics."""
 
+import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,6 +12,7 @@ from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceValidationError,
 )
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
 from custom_components.att_router_reboot.api import (
@@ -36,6 +38,7 @@ from .conftest import (
     MAC,
     MODEL,
     REBOOT,
+    SERIAL,
     UPTIME,
     WAN_IP,
     broadband,
@@ -261,19 +264,57 @@ async def test_a_broadband_read_failure_does_not_fail_the_poll(hass, config_entr
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.LOADED
     assert hass.states.get(UPTIME_SENSOR).state == "1000"
+    assert hass.states.get(WAN_IP_SENSOR).state == STATE_UNAVAILABLE
+    assert hass.states.get(WAN_SENSOR).state == STATE_UNAVAILABLE
 
 
-async def test_a_broadband_failure_on_a_later_poll_keeps_the_last_stats(
-    hass, config_entry, gateway
+async def test_a_broadband_failure_on_a_later_poll_does_not_show_old_stats(
+    hass, config_entry, gateway, caplog
 ):
+    """The previous poll's values must not be reported as current."""
     await _setup(hass, config_entry, gateway)
-    with (
-        patch(UPTIME, return_value=1120),
-        patch(BROADBAND, side_effect=AttRouterError("stats page moved")),
-    ):
-        await _poll(hass, config_entry)
+    caplog.set_level(logging.INFO, logger="custom_components.att_router_reboot")
+    gateway.uptime.return_value = 1120
+    gateway.broadband.side_effect = AttRouterError("stats page moved")
+    await _poll(hass, config_entry)
+    await _poll(hass, config_entry)
     assert hass.states.get(UPTIME_SENSOR).state == "1120"
+    assert hass.states.get(REACHABLE).state == "on"
+    assert hass.states.get(WAN_IP_SENSOR).state == STATE_UNAVAILABLE
+    assert hass.states.get(WAN_SENSOR).state == STATE_UNAVAILABLE
+    assert caplog.text.count("Broadband statistics are unavailable") == 1
+
+    gateway.broadband.side_effect = None
+    await _poll(hass, config_entry)
+    await _poll(hass, config_entry)
     assert hass.states.get(WAN_IP_SENSOR).state == WAN_IP
+    assert hass.states.get(WAN_SENSOR).state == "on"
+    assert caplog.text.count("Broadband statistics are available again") == 1
+
+
+def _host_keyed_entry() -> MockConfigEntry:
+    """An entry as created before 0.3.0, keyed on the host."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=f"AT&T Gateway ({HOST})",
+        unique_id=HOST,
+        data=dict(ENTRY_DATA),
+    )
+
+
+async def test_a_host_keyed_entry_is_rekeyed_on_the_serial(hass, gateway):
+    entry = _host_keyed_entry()
+    await _setup(hass, entry, gateway)
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == SERIAL
+
+
+async def test_a_host_keyed_entry_stays_when_the_serial_cannot_be_read(hass, gateway):
+    gateway.model.side_effect = AttRouterError("sysinfo moved")
+    entry = _host_keyed_entry()
+    await _setup(hass, entry, gateway)
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == HOST
 
 
 async def test_data_payload_shape(hass, config_entry, gateway):

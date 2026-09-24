@@ -50,6 +50,8 @@ def async_setup_schedule(hass: HomeAssistant, entry: AttRouterConfigEntry) -> No
     """Wire a time trigger if the options ask for one."""
     schedule = entry.options.get(CONF_SCHEDULE, DEFAULT_SCHEDULE)
     if schedule == SCHEDULE_OFF:
+        # No schedule, so no scheduled failure left to report.
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
         return
 
     hour, minute, second = _parse_time(
@@ -77,6 +79,7 @@ def async_setup_schedule(hass: HomeAssistant, entry: AttRouterConfigEntry) -> No
 
         _LOGGER.info("Scheduled reboot firing")
         try:
+            # A success clears the repair issue inside async_reboot.
             await coordinator.async_reboot()
         except HomeAssistantError as err:
             # Nobody is watching a timer fire. A rejected code has already
@@ -95,10 +98,6 @@ def async_setup_schedule(hass: HomeAssistant, entry: AttRouterConfigEntry) -> No
                     translation_key=ISSUE_SCHEDULED_REBOOT_FAILED,
                     translation_placeholders={"error": detail},
                 )
-            return
-
-        # A schedule that works again clears the warning it raised.
-        ir.async_delete_issue(hass, DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
 
     entry.async_on_unload(
         async_track_time_change(hass, _fire, hour=hour, minute=minute, second=second)

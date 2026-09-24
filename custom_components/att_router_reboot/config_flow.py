@@ -41,6 +41,7 @@ from .const import (
     SCHEDULES,
     WEEKDAYS,
 )
+from .models import gateway_identity
 
 # The access code is a credential: masked in the browser, never echoed back.
 _ACCESS_CODE = selector.TextSelector(
@@ -48,13 +49,16 @@ _ACCESS_CODE = selector.TextSelector(
 )
 
 
-async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> None:
-    """Log in against the real gateway; raises on failure.
+async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> str:
+    """Log in against the real gateway and return its identity; raises on failure.
 
     The same session shape __init__.py uses - own jar, unsafe for the IP host -
     so the flow proves the exact conversation the reboot will have. Detached
     here rather than left to the helper, since a flow is over in seconds; the
     connector is Home Assistant's shared one, so detach is the right release.
+
+    The identity is the unique id, so the entry follows the gateway rather
+    than its address.
     """
     session = async_create_clientsession(
         hass,
@@ -65,8 +69,16 @@ async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> None:
     client = AttRouterClient(session, data[CONF_HOST], data[CONF_ACCESS_CODE])
     try:
         await client.async_verify_access_code()
+        identity = gateway_identity(await client.async_get_model())
     finally:
         session.detach()
+    if identity is None:
+        raise AttRouterError("sysinfo.ha reported no serial number or MAC address")
+    return identity
+
+
+def _title(host: str) -> str:
+    return f"AT&T Gateway ({host})"
 
 
 def _user_schema(defaults: Mapping[str, Any], *, code_required: bool) -> vol.Schema:
@@ -97,16 +109,18 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def _async_try(self, data: dict[str, Any]) -> dict[str, str]:
+    async def _async_try(
+        self, data: dict[str, Any]
+    ) -> tuple[str | None, dict[str, str]]:
+        """The gateway's identity, or the form error to show."""
         try:
-            await _validate(self.hass, data)
+            return await _validate(self.hass, data), {}
         except AttRouterAuthError:
-            return {"base": "invalid_auth"}
+            return None, {"base": "invalid_auth"}
         except AttRouterConnectionError:
-            return {"base": "cannot_connect"}
+            return None, {"base": "cannot_connect"}
         except AttRouterError:
-            return {"base": "unknown"}
-        return {}
+            return None, {"base": "unknown"}
 
     @override
     async def async_step_user(
@@ -114,13 +128,12 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            await self.async_set_unique_id(user_input[CONF_HOST])
-            self._abort_if_unique_id_configured()
-            errors = await self._async_try(user_input)
-            if not errors:
+            identity, errors = await self._async_try(user_input)
+            if identity is not None:
+                await self.async_set_unique_id(identity)
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"AT&T Gateway ({user_input[CONF_HOST]})",
-                    data=user_input,
+                    title=_title(user_input[CONF_HOST]), data=user_input
                 )
         # On an error the form comes back with the host and the checkbox as
         # typed; the access code is dropped so it is never sent back out.
@@ -134,10 +147,10 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Change the access code or the certificate check without re-adding.
+        """Change the address, access code or certificate check without re-adding.
 
-        The entry is keyed on the host, so a changed address aborts with
-        another_gateway rather than following the gateway.
+        The gateway at the address must report the serial number (else MAC)
+        the entry is keyed on; a different gateway aborts with another_gateway.
         """
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
@@ -147,11 +160,16 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
             data = dict(user_input)
             if not data.get(CONF_ACCESS_CODE):
                 data[CONF_ACCESS_CODE] = entry.data[CONF_ACCESS_CODE]
-            errors = await self._async_try(data)
-            if not errors:
-                await self.async_set_unique_id(data[CONF_HOST])
+            identity, errors = await self._async_try(data)
+            if identity is not None:
+                await self.async_set_unique_id(identity)
                 self._abort_if_unique_id_mismatch(reason="another_gateway")
-                return self.async_update_reload_and_abort(entry, data=data)
+                # A title the user renamed is theirs; the default one names
+                # the address and follows it.
+                title = entry.title
+                if title == _title(entry.data[CONF_HOST]):
+                    title = _title(data[CONF_HOST])
+                return self.async_update_reload_and_abort(entry, title=title, data=data)
         # The stored access code never goes back to the browser: a suggested
         # value is sent to the frontend, where a password field can reveal it.
         shown = {
@@ -177,7 +195,7 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             data = {**entry.data, CONF_ACCESS_CODE: user_input[CONF_ACCESS_CODE]}
-            errors = await self._async_try(data)
+            _, errors = await self._async_try(data)
             if not errors:
                 return self.async_update_reload_and_abort(entry, data=data)
         return self.async_show_form(

@@ -71,8 +71,9 @@ rules:
   unique-config-entry:
     status: done
     comment: |
-      single_config_entry in the manifest; the host is also set as the unique
-      id so the reconfigure flow can refuse a different gateway.
+      single_config_entry in the manifest. The unique id is the gateway's
+      serial number, else its MAC, read from sysinfo.ha; entries keyed on the
+      host before 0.3.0 are re-keyed at setup.
 
   # Silver
   action-exceptions:
@@ -88,13 +89,16 @@ rules:
     status: done
     comment: |
       Coordinator failure marks everything unavailable except Reachable,
-      which stays available so the fault itself is visible.
+      which stays available so the fault itself is visible. A failed read of
+      the broadband page marks the broadband sensors and Internet connection
+      unavailable while uptime still updates.
   integration-owner: done
   log-when-unavailable:
     status: done
     comment: |
       DataUpdateCoordinator logs the unreachable gateway once when the poll
-      first fails and once at info when it recovers.
+      first fails and once at info when it recovers. The coordinator does the
+      same for the broadband page.
   parallel-updates: done
   reauthentication-flow:
     status: done
@@ -148,9 +152,8 @@ rules:
       the gateway answers no SSDP, publishes no UPnP description and announces
       nothing over mDNS, so there is no rediscovery to carry a new address in.
       The rule page exempts integrations "where the devices can't be
-      discovered". The unique id is the host, so a gateway that moves is
-      deleted and re-added, as the README says; nothing here could learn a new
-      address on its own even if the rule were adopted.
+      discovered". A gateway that moves is given its new address in the
+      reconfigure flow; nothing here could learn a new address on its own.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -192,17 +195,18 @@ rules:
   reconfiguration-flow:
     status: done
     comment: |
-      Access code and certificate check can change in place; the stored code
-      is never sent back to the form and a blank keeps it. The unique id is
-      the host, so a gateway at a new address is another gateway and is
-      refused - documented in the README.
+      Address, access code and certificate check can change in place; the
+      stored code is never sent back to the form and a blank keeps it. The
+      gateway at the address must report the serial number the entry is keyed
+      on, else the flow aborts with another_gateway.
   repair-issues:
     status: done
     comment: |
       A scheduled reboot fires with nobody watching it, so schedule.py raises
-      the scheduled_reboot_failed issue when one fails and deletes it when a
-      later one succeeds. The text says what the user can check and how to
-      stop being told. A rejected access code is excluded: it starts the
+      the scheduled_reboot_failed issue when one fails. It is deleted when any
+      reboot succeeds (button, action or schedule), when the schedule is set
+      to Off, and when the entry is removed. The text says what the user can
+      check and how to stop being told. A rejected access code is excluded: it starts the
       reauth flow instead, which is the better prompt, and two notices for one
       fault would be noise. Every other fault (an unreachable gateway, an
       unreadable page) is ordinary unavailability with a user watching, which

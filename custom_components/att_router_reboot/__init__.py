@@ -7,13 +7,21 @@ from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .api import AttRouterClient
-from .const import CONF_ACCESS_CODE, CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL, DOMAIN
+from .const import (
+    CONF_ACCESS_CODE,
+    CONF_VERIFY_SSL,
+    DEFAULT_VERIFY_SSL,
+    DOMAIN,
+    ISSUE_SCHEDULED_REBOOT_FAILED,
+)
 from .coordinator import AttRouterConfigEntry, AttRouterCoordinator
+from .models import gateway_identity
 from .schedule import async_setup_schedule
 from .services import async_setup_services
 
@@ -71,6 +79,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) ->
             ) from cause
         raise
 
+    # Entries created before 0.3.0 were keyed on the host. Re-key on the
+    # gateway's identity once it has been read; before the update listener is
+    # registered, so this does not reload the entry.
+    identity = gateway_identity(coordinator.model_info)
+    if identity and entry.unique_id == entry.data[CONF_HOST]:
+        hass.config_entries.async_update_entry(entry, unique_id=identity)
+
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     async_setup_schedule(hass, entry)
@@ -82,6 +97,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) -
     """Unload a config entry. The reboot action stays registered - see async_setup."""
     unloaded: bool = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: AttRouterConfigEntry) -> None:
+    """Remove the entry's repair issue with it."""
+    ir.async_delete_issue(hass, DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED)
 
 
 async def _async_reload(hass: HomeAssistant, entry: AttRouterConfigEntry) -> None:

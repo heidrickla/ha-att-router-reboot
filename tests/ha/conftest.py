@@ -39,6 +39,8 @@ ENTRY_DATA = {
 
 WAN_IP = "203.0.113.10"
 MAC = "aa:bb:cc:dd:ee:ff"
+SERIAL = "001E46-A1B2C3D4E5F6"
+MODEL_INFO = {"model": "BGW320-500", "serial": SERIAL, "mac": MAC}
 
 CLIENT = "custom_components.att_router_reboot.api.AttRouterClient"
 UPTIME = f"{CLIENT}.async_get_uptime"
@@ -89,7 +91,7 @@ def gateway() -> Iterator[Gateway]:
     """
     with (
         patch(UPTIME, return_value=1000) as uptime,
-        patch(MODEL, return_value={"model": "BGW320-500", "mac": MAC}) as model,
+        patch(MODEL, return_value=dict(MODEL_INFO)) as model,
         patch(BROADBAND, return_value=broadband()) as stats,
     ):
         yield Gateway(uptime=uptime, model=model, broadband=stats)
@@ -100,7 +102,7 @@ def config_entry():
     return MockConfigEntry(
         domain=DOMAIN,
         title=f"AT&T Gateway ({HOST})",
-        unique_id=HOST,
+        unique_id=SERIAL,
         data=dict(ENTRY_DATA),
     )
 

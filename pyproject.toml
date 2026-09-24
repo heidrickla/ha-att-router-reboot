@@ -1,7 +1,7 @@
 [project]
 name = "ha-att-router-reboot"
 # Kept equal to manifest.json and const.VERSION; tools/validate_local.py checks.
-version = "0.2.1"
+version = "0.3.0"
 description = "Home Assistant integration that reboots an AT&T residential gateway."
 # Home Assistant 2026.8.3 declares requires-python >=3.14.2 and CI installs
 # 3.14. What a user has to meet is the Home Assistant floor in hacs.json.

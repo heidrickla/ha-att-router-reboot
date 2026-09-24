@@ -28,7 +28,7 @@ from custom_components.att_router_reboot.const import (
     SCHEDULE_WEEKLY,
 )
 
-from .conftest import ENTRY_DATA, HOST
+from .conftest import ENTRY_DATA, HOST, MAC, SERIAL
 
 VERIFY = (
     "custom_components.att_router_reboot.api.AttRouterClient.async_verify_access_code"
@@ -68,7 +68,28 @@ async def test_user_step_creates_the_entry(hass):
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_HOST] == HOST
-    assert result["result"].unique_id == HOST
+    assert result["result"].unique_id == SERIAL
+
+
+async def test_the_entry_is_keyed_on_the_mac_when_there_is_no_serial(hass, gateway):
+    gateway.model.return_value = {"model": "BGW320-500", "mac": "AA:BB:CC:DD:EE:FF"}
+    with patch(VERIFY, return_value=None):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}, data=dict(ENTRY_DATA)
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == MAC
+
+
+async def test_a_gateway_reporting_no_identity_is_refused(hass, gateway):
+    """Without a serial or MAC there is nothing but the address to key on."""
+    gateway.model.return_value = {"model": "BGW320-500"}
+    with patch(VERIFY, return_value=None):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}, data=dict(ENTRY_DATA)
+        )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "unknown"}
 
 
 async def test_the_first_form_is_shown_with_no_input(hass):
@@ -226,8 +247,9 @@ async def test_reconfigure_shows_each_error_and_then_recovers(
     await hass.async_block_till_done()
 
 
-async def test_reconfigure_refuses_a_different_gateway(hass, config_entry):
+async def test_reconfigure_refuses_a_different_gateway(hass, config_entry, gateway):
     config_entry.add_to_hass(hass)
+    gateway.model.return_value = {"serial": "001E46-000000000000", "mac": MAC}
     with patch(VERIFY, return_value=None):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -237,6 +259,36 @@ async def test_reconfigure_refuses_a_different_gateway(hass, config_entry):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "another_gateway"
     assert config_entry.data[CONF_HOST] == HOST
+
+
+async def test_reconfigure_follows_the_gateway_to_a_new_address(hass, config_entry):
+    config_entry.add_to_hass(hass)
+    with patch(VERIFY, return_value=None):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "reconfigure", "entry_id": config_entry.entry_id},
+            data={**ENTRY_DATA, CONF_HOST: "10.0.0.1"},
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data[CONF_HOST] == "10.0.0.1"
+    assert config_entry.title == "AT&T Gateway (10.0.0.1)"
+    assert config_entry.unique_id == SERIAL
+    await hass.async_block_till_done()
+
+
+async def test_reconfigure_keeps_a_title_the_user_chose(hass, config_entry):
+    config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(config_entry, title="Fibre gateway")
+    with patch(VERIFY, return_value=None):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "reconfigure", "entry_id": config_entry.entry_id},
+            data={**ENTRY_DATA, CONF_HOST: "10.0.0.1"},
+        )
+    assert config_entry.data[CONF_HOST] == "10.0.0.1"
+    assert config_entry.title == "Fibre gateway"
+    await hass.async_block_till_done()
 
 
 async def test_reauth_updates_only_the_code(hass, config_entry):

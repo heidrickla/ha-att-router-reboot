@@ -73,5 +73,10 @@ class AttRouterWanConnectedSensor(AttRouterEntity, BinarySensorEntity):
 
     @property
     @override
+    def available(self) -> bool:
+        return super().available and self.coordinator.data.broadband_read
+
+    @property
+    @override
     def is_on(self) -> bool | None:
         return self.coordinator.data.broadband.connection_up

@@ -122,17 +122,18 @@ for internet. The skip is logged at info.
 
 A failed scheduled reboot raises a repair notice under Settings -> System ->
 Repairs, because nobody is watching a timer fire at four in the morning. The
-notice names the error, says what to check, and clears itself the next time a
-scheduled reboot succeeds. A rejected access code raises a re-authentication
-prompt instead.
+notice names the error and says what to check. It clears itself when a reboot
+succeeds by any path, when the schedule is set to Off, or when the entry is
+removed. A rejected access code raises a re-authentication prompt instead.
 
 ### Reconfiguring
 
 Settings -> Devices & services -> AT&T Router Reboot -> the three dots ->
-Reconfigure changes the access code or the certificate check. Leave the access
-code blank to keep the stored one; the stored code is never shown. The address
-must still answer as the same gateway: if you move the gateway to a new
-address, delete the entry and add it again.
+Reconfigure changes the address, the access code or the certificate check.
+Leave the access code blank to keep the stored one; the stored code is never
+shown. The entry is keyed on the gateway's serial number, so a gateway moved
+to a new address keeps its entry, and a different gateway at the address is
+refused.
 
 If a reboot is refused because the access code has changed, the integration
 starts a re-authentication flow and Home Assistant asks for the new code.
@@ -150,9 +151,10 @@ restart Home Assistant.
 - Statistics are polled every two minutes from `sysinfo.ha` and
   `broadbandstatistics.ha`, which the gateway serves without authentication.
   Model, serial, firmware and MAC are read once when the entry loads. If the
-  broadband page cannot be read, the last statistics are kept and uptime is
-  still updated. If the uptime page cannot be read, everything but Reachable
-  becomes unavailable and the log says so once.
+  broadband page cannot be read, the broadband sensors and Internet
+  connection become unavailable, uptime is still updated, and the log says so
+  once. If the uptime page cannot be read, everything but Reachable becomes
+  unavailable and the log says so once.
 - Reboot happens only when asked: the button, the action or the schedule. It
   logs in the way the gateway's own web page does. The access code is hashed
   (`md5(code + nonce)`) against a per-request nonce, over a session of its own

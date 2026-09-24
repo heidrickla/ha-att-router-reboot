@@ -8,6 +8,27 @@ The newest version below is the version in `manifest.json` and in
 `const.VERSION`. HACS installs the tagged release rather than the default
 branch.
 
+## [0.3.0] - 2026-09-24
+
+### Changed
+
+- The entry is keyed on the gateway's serial number, else its MAC, read from
+  `sysinfo.ha`, not on the host. Entries created on 0.2.x are re-keyed at
+  setup once the serial is read.
+- Reconfigure can change the address. The gateway at the new address must
+  report the serial number the entry is keyed on, else the flow aborts with
+  `another_gateway`. The default title follows the address; a renamed title
+  is kept.
+- A failed read of `broadbandstatistics.ha` marks the broadband sensors and
+  Internet connection unavailable instead of repeating the previous poll's
+  values. Logged at info once when the page is lost and once when it is back.
+- The `scheduled_reboot_failed` repair issue clears when a reboot succeeds by
+  any path, when the schedule is set to Off, and when the entry is removed.
+
+### Added
+
+- The `already_in_progress` abort has a string.
+
 ## [0.2.1] - 2026-09-16
 
 ### Changed
