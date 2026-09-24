@@ -90,13 +90,12 @@ jobs:
       - name: Offline validator
         run: python tools/validate_local.py
 
-  hacs:
-    name: hassfest + HACS
+  # hacs/action reads the repository through the GitHub API, so it cannot
+  # check this tree here; .github/workflows/tests.yml runs it on GitHub.
+  hassfest:
+    name: hassfest
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
-      - uses: hacs/action@main
-        with:
-          category: integration
