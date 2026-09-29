@@ -8,7 +8,7 @@ The newest version below is the version in `manifest.json` and in
 `const.VERSION`. HACS installs the tagged release rather than the default
 branch.
 
-## [0.3.0] - 2026-09-24
+## [0.3.0] - 2026-09-29
 
 ### Changed
 
@@ -24,6 +24,9 @@ branch.
   values. Logged at info once when the page is lost and once when it is back.
 - The `scheduled_reboot_failed` repair issue clears when a reboot succeeds by
   any path, when the schedule is set to Off, and when the entry is removed.
+- The README says reconfigure moves the entry to a new address, names the
+  `another_gateway` refusal, and states supported gateways and discovery
+  without dated notes.
 
 ### Added
 

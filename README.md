@@ -41,14 +41,15 @@ rather than an unknown-action error.
 
 ## Supported devices
 
-| Gateway | Firmware | Status |
+| Gateway | Firmware | Notes |
 |---|---|---|
-| BGW320-500 | 6.35.8 | Verified: the parser and the login are built against pages recorded from this unit. |
-| BGW320-505 | any | Same web interface. No report from one as of 2026-09-16; open an issue if you run it. |
-| BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). No report from one as of 2026-09-16. |
+| BGW320-500 | 6.35.8 | The parser and the login are built against pages recorded from this unit. |
+| BGW320-505 | any | Same web interface as the BGW320-500. |
+| BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). |
 
 The gateway must serve its web interface over HTTPS on its LAN address, which
-every BGW does by default.
+every BGW does by default. If another model reads differently, open an issue
+with the debug log.
 
 ## Use cases
 
@@ -88,14 +89,13 @@ Only one gateway can be added to a Home Assistant instance.
 
 ### Discovery
 
-There is none, and there cannot be. Add the gateway by address. Measured on
-a BGW320-500 in AT&T IP passthrough mode on 2026-09-05, the gateway answers no
-SSDP search (`ssdp:all`, `upnp:rootdevice` and both InternetGatewayDevice
-targets were tried from two hosts that reach it, one of them over a route
-pinned to the WAN interface), serves no UPnP description on port 1900, 49152,
-5000 or 80, and announces nothing over mDNS. Its web interface has no UPnP
-settings at all. It is also the LAN's DHCP server rather than a client, so it
-never sends the DHCP request Home Assistant's DHCP discovery listens for.
+Add the gateway by address. It offers nothing to be discovered by. A
+BGW320-500 in AT&T IP passthrough mode answers no SSDP search (`ssdp:all`,
+`upnp:rootdevice` or either InternetGatewayDevice target), serves no UPnP
+description on port 1900, 49152, 5000 or 80, and announces nothing over mDNS.
+Its web interface has no UPnP settings. It is the LAN's DHCP server rather
+than a client, so it never sends the DHCP request Home Assistant's DHCP
+discovery listens for.
 
 ### Installation parameters
 
@@ -131,9 +131,10 @@ removed. A rejected access code raises a re-authentication prompt instead.
 Settings -> Devices & services -> AT&T Router Reboot -> the three dots ->
 Reconfigure changes the address, the access code or the certificate check.
 Leave the access code blank to keep the stored one; the stored code is never
-shown. The entry is keyed on the gateway's serial number, so a gateway moved
-to a new address keeps its entry, and a different gateway at the address is
-refused.
+shown. The entry is keyed on the gateway's serial number, else its MAC, so a
+gateway moved to a new address keeps its entry, and a different gateway at the
+address is refused. The default title follows the address; a title you renamed
+is kept.
 
 If a reboot is refused because the access code has changed, the integration
 starts a re-authentication flow and Home Assistant asks for the new code.
@@ -221,20 +222,20 @@ automation:
 
 ## Known limitations
 
-- Only reboot, uptime and broadband statistics are implemented. The gateway
-  exposes far more (NAT tables, per-port LAN counters, fibre diagnostics); this
-  integration is scoped to fixing and watching a gateway, not managing one.
-- The reboot response is expected to drop as the gateway restarts; that is
-  treated as success. If a reboot silently fails, the Uptime sensor is the
-  place it shows - it will not reset.
-- One gateway per Home Assistant instance, and the entry cannot follow the
-  gateway to a new address; delete and re-add it.
-- Verified only against BGW320-500 / 6.35.8. Other models render the same pages
-  with small differences; the parser degrades to "unknown" on a field it does
-  not recognise rather than reporting a wrong number.
-- No discovery, and none is possible: the gateway offers no SSDP, no UPnP and
-  no mDNS, and it is a DHCP server rather than a DHCP client. See Discovery
-  above for what was measured. Add it by address.
+- The integration reboots the gateway and reads its uptime and broadband
+  statistics. The gateway's other pages (NAT tables, per-port LAN counters,
+  fibre diagnostics) are out of scope: this is for fixing and watching a
+  gateway, not managing one.
+- The gateway drops the connection as it restarts, and the integration treats
+  that as success. Uptime resetting is the confirmation; if it does not reset,
+  the gateway did not restart.
+- One gateway per Home Assistant instance. Reconfigure moves the entry to a
+  new address; see Reconfiguring.
+- The parser is built against BGW320-500 firmware 6.35.8. Other models render
+  the same pages with small differences; a field the parser does not recognise
+  reads unknown rather than a wrong number.
+- No discovery: the gateway offers no SSDP, no UPnP and no mDNS, and it is a
+  DHCP server rather than a DHCP client. Add it by address; see Discovery.
 
 ## Troubleshooting
 
@@ -244,6 +245,7 @@ automation:
 | Setup says "The access code was rejected" | The code is the **Device Access Code** on the gateway's label, not the Wi-Fi password. If you changed it in the gateway's web interface, use the new one. |
 | Setup says "Unexpected error talking to the gateway" | The gateway answered with a page the integration did not expect; the log has the detail. The usual one is its "please enable cookies" page, meaning the session cookie is not round-tripping. This integration keeps cookies for the gateway's IP address on purpose, so that page means the firmware has changed. Report the log line. |
 | Setup fails with the certificate check on | The gateway's certificate is self-signed. Turn the check off unless you installed your own trusted certificate on the gateway. |
+| Reconfigure says "That address answers as a different gateway" | The gateway at the new address reports a different serial number from the one the entry is keyed on. To switch to that gateway, delete the entry and add it again. |
 | Everything is unavailable except Reachable, which is off | The gateway is not answering. The log has one line saying so and one when it recovers. |
 | Internet connection is off but the sensors update | The gateway is up and its upstream is down. This is the case the Reboot button is for. |
 | The Reboot button did nothing; Uptime did not reset | Look for "reboot returned HTTP" or "still on the login form" in the log. The first means the gateway refused the form; the second means the login did not stick and a reauth prompt has been raised. |
