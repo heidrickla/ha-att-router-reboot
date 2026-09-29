@@ -1,18 +1,12 @@
 # AT&T Router Reboot for Home Assistant
 
-Home Assistant custom integration to reboot an AT&T residential gateway on
-demand or on a schedule, and to watch its uptime and broadband statistics.
-Built and verified against a BGW320-500 on firmware 6.35.8. Other BGW-series
-gateways share the same web interface; see Supported devices.
+Home Assistant custom integration to reboot an AT&T residential gateway on demand or on a schedule, and to watch its uptime and broadband statistics. Built and verified against a BGW320-500 on firmware 6.35.8. Other BGW-series gateways share the same web interface; see Supported devices.
 
-Everything talks to the gateway over your local network. No AT&T account, no
-cloud.
+Everything talks to the gateway over your local network. No AT&T account, no cloud.
 
 ## What you get
 
-One device, "AT&T Gateway", with these entities. All of the sensors are read
-from pages the gateway serves without a login, so they work even before
-you have entered an access code, and a wrong code never blanks them.
+One device, "AT&T Gateway", with these entities. All of the sensors are read from pages the gateway serves without a login, so they work even before you have entered an access code, and a wrong code never blanks them.
 
 | Entity | Type | What it is |
 |---|---|---|
@@ -25,9 +19,7 @@ you have entered an access code, and a wrong code never blanks them.
 | Reachable | binary sensor | On when the gateway answered the last poll. Stays available while everything else is unavailable, so the fault is visible. |
 | Internet connection | binary sensor | On when the gateway reports its broadband link up. Deliberately separate from Reachable: a gateway can answer perfectly while its upstream is down. |
 
-Reboot and Internet connection are the dashboard entities. Everything else is
-diagnostic: Reachable, Uptime, the WAN address, the line rate and all of the
-counters.
+Reboot and Internet connection are the dashboard entities. Everything else is diagnostic: Reachable, Uptime, the WAN address, the line rate and all of the counters.
 
 ### Actions
 
@@ -35,9 +27,7 @@ counters.
 |---|---|---|
 | `att_router_reboot.reboot` | Reboots the gateway now, the same way the button does. | None. The integration manages one gateway, so there is nothing to target. |
 
-The action is registered when Home Assistant starts, so an automation that
-calls it while the integration is not loaded gets a clear "not loaded" error
-rather than an unknown-action error.
+The action is registered when Home Assistant starts, so an automation that calls it while the integration is not loaded gets a clear "not loaded" error rather than an unknown-action error.
 
 ## Supported devices
 
@@ -47,55 +37,34 @@ rather than an unknown-action error.
 | BGW320-505 | any | Same web interface as the BGW320-500. |
 | BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). |
 
-The gateway must serve its web interface over HTTPS on its LAN address, which
-every BGW does by default. If another model reads differently, open an issue
-with the debug log.
+The gateway must serve its web interface over HTTPS on its LAN address, which every BGW does by default. If another model reads differently, open an issue with the debug log.
 
 ## Use cases
 
 - Reboot the gateway from a dashboard button instead of walking to it.
-- Reboot it on a schedule (nightly, or one night a week) without writing an
-  automation, with a guard against rebooting a gateway that has only just come
-  up.
-- Reboot it automatically when the internet connection has been down for a
-  while, from an automation on the Internet connection sensor.
-- Know when the public IP address changes, and when the gateway rebooted on
-  its own.
+- Reboot it on a schedule (nightly, or one night a week) without writing an automation, with a guard against rebooting a gateway that has only just come up.
+- Reboot it automatically when the internet connection has been down for a while, from an automation on the Internet connection sensor.
+- Know when the public IP address changes, and when the gateway rebooted on its own.
 
 ## Requirements
 
-- Home Assistant 2026.3 or newer. The code needs Python 3.14.2, and 2026.3.0
-  is the first release to require it; the in-repo brand images are served from
-  the same release on.
-- An AT&T gateway reachable on your LAN, usually at `192.168.1.254`. Home
-  Assistant must be able to reach that address - on a segmented network, put
-  Home Assistant where it can route to the gateway.
-- The device access code printed on the gateway's label. This is what its web
-  interface logs in with. It is needed for the reboot, not for the statistics.
+- Home Assistant 2026.3 or newer. The code needs Python 3.14.2, and 2026.3.0 is the first release to require it; the in-repo brand images are served from the same release on.
+- An AT&T gateway reachable on your LAN, usually at `192.168.1.254`. Home Assistant must be able to reach that address - on a segmented network, put Home Assistant where it can route to the gateway.
+- The device access code printed on the gateway's label. This is what its web interface logs in with. It is needed for the reboot, not for the statistics.
 
 ## Installation
 
-1. Copy `custom_components/att_router_reboot` into your Home Assistant
-   `custom_components` directory, or add this repository to HACS as a custom
-   repository and install it from there.
+1. Copy `custom_components/att_router_reboot` into your Home Assistant `custom_components` directory, or add this repository to HACS as a custom repository and install it from there.
 2. Restart Home Assistant.
 3. Settings -> Devices & services -> Add integration -> "AT&T Router Reboot".
-4. Enter the gateway address and the device access code. The integration logs
-   in before it saves anything, so a wrong code is caught here.
-5. Open the integration's Configure to set an automatic reboot schedule. This
-   step is optional.
+4. Enter the gateway address and the device access code. The integration logs in before it saves anything, so a wrong code is caught here.
+5. Open the integration's Configure to set an automatic reboot schedule. This step is optional.
 
 Only one gateway can be added to a Home Assistant instance.
 
 ### Discovery
 
-Add the gateway by address. It offers nothing to be discovered by. A
-BGW320-500 in AT&T IP passthrough mode answers no SSDP search (`ssdp:all`,
-`upnp:rootdevice` or either InternetGatewayDevice target), serves no UPnP
-description on port 1900, 49152, 5000 or 80, and announces nothing over mDNS.
-Its web interface has no UPnP settings. It is the LAN's DHCP server rather
-than a client, so it never sends the DHCP request Home Assistant's DHCP
-discovery listens for.
+Add the gateway by address. It offers nothing to be discovered by. A BGW320-500 in AT&T IP passthrough mode answers no SSDP search (`ssdp:all`, `upnp:rootdevice` or either InternetGatewayDevice target), serves no UPnP description on port 1900, 49152, 5000 or 80, and announces nothing over mDNS. Its web interface has no UPnP settings. It is the LAN's DHCP server rather than a client, so it never sends the DHCP request Home Assistant's DHCP discovery listens for.
 
 ### Installation parameters
 
@@ -115,60 +84,28 @@ Settings -> Devices & services -> AT&T Router Reboot -> Configure.
 | Time of day | 04:00:00 | Local time at which a scheduled reboot runs. Ignored when the schedule is off. |
 | Day of week | Sunday | Used only by a weekly schedule. |
 
-A scheduled reboot is skipped when the gateway has been up for less than 30
-minutes. That stops a schedule firing right after a manual reboot, or a gateway
-stuck in a restart loop, from power-cycling the one device the house depends on
-for internet. The skip is logged at info.
+A scheduled reboot is skipped when the gateway has been up for less than 30 minutes. That stops a schedule firing right after a manual reboot, or a gateway stuck in a restart loop, from power-cycling the one device the house depends on for internet. The skip is logged at info.
 
-A failed scheduled reboot raises a repair notice under Settings -> System ->
-Repairs, because nobody is watching a timer fire at four in the morning. The
-notice names the error and says what to check. It clears itself when a reboot
-succeeds by any path, when the schedule is set to Off, or when the entry is
-removed. A rejected access code raises a re-authentication prompt instead.
+A failed scheduled reboot raises a repair notice under Settings -> System -> Repairs, because nobody is watching a timer fire at four in the morning. The notice names the error and says what to check. It clears itself when a reboot succeeds by any path, when the schedule is set to Off, or when the entry is removed. A rejected access code raises a re-authentication prompt instead.
 
 ### Reconfiguring
 
-Settings -> Devices & services -> AT&T Router Reboot -> the three dots ->
-Reconfigure changes the address, the access code or the certificate check.
-Leave the access code blank to keep the stored one; the stored code is never
-shown. The entry is keyed on the gateway's serial number, else its MAC, so a
-gateway moved to a new address keeps its entry, and a different gateway at the
-address is refused. The default title follows the address; a title you renamed
-is kept.
+Settings -> Devices & services -> AT&T Router Reboot -> the three dots -> Reconfigure changes the address, the access code or the certificate check. Leave the access code blank to keep the stored one; the stored code is never shown. The entry is keyed on the gateway's serial number, else its MAC, so a gateway moved to a new address keeps its entry, and a different gateway at the address is refused. The default title follows the address; a title you renamed is kept.
 
-If a reboot is refused because the access code has changed, the integration
-starts a re-authentication flow and Home Assistant asks for the new code.
+If a reboot is refused because the access code has changed, the integration starts a re-authentication flow and Home Assistant asks for the new code.
 
 ### Removing it
 
-Settings -> Devices & services -> AT&T Router Reboot -> the three dots ->
-Delete. That removes the entry, its device and every entity. Nothing is written
-to the gateway, so there is nothing to undo on it. To remove the code as well,
-delete `custom_components/att_router_reboot` (or uninstall it in HACS) and
-restart Home Assistant.
+Settings -> Devices & services -> AT&T Router Reboot -> the three dots -> Delete. That removes the entry, its device and every entity. Nothing is written to the gateway, so there is nothing to undo on it. To remove the code as well, delete `custom_components/att_router_reboot` (or uninstall it in HACS) and restart Home Assistant.
 
 ## How it updates
 
-- Statistics are polled every two minutes from `sysinfo.ha` and
-  `broadbandstatistics.ha`, which the gateway serves without authentication.
-  Model, serial, firmware and MAC are read once when the entry loads. If the
-  broadband page cannot be read, the broadband sensors and Internet
-  connection become unavailable, uptime is still updated, and the log says so
-  once. If the uptime page cannot be read, everything but Reachable becomes
-  unavailable and the log says so once.
-- Reboot happens only when asked: the button, the action or the schedule. It
-  logs in the way the gateway's own web page does. The access code is hashed
-  (`md5(code + nonce)`) against a per-request nonce, over a session of its own
-  that keeps the gateway's cookie. It then replays the gateway's own restart
-  form rather than posting a hardcoded body. If a firmware update renames a
-  form field, replaying still submits the right thing. A refresh is requested
-  straight after, so Uptime shows the reset within a poll or two of the gateway
-  coming back.
+- Statistics are polled every two minutes from `sysinfo.ha` and `broadbandstatistics.ha`, which the gateway serves without authentication. Model, serial, firmware and MAC are read once when the entry loads. If the broadband page cannot be read, the broadband sensors and Internet connection become unavailable, uptime is still updated, and the log says so once. If the uptime page cannot be read, everything but Reachable becomes unavailable and the log says so once.
+- Reboot happens only when asked: the button, the action or the schedule. It logs in the way the gateway's own web page does. The access code is hashed (`md5(code + nonce)`) against a per-request nonce, over a session of its own that keeps the gateway's cookie. It then replays the gateway's own restart form rather than posting a hardcoded body. If a firmware update renames a form field, replaying still submits the right thing. A refresh is requested straight after, so Uptime shows the reset within a poll or two of the gateway coming back.
 
 ## Examples
 
-Reboot the gateway when the internet has been down for ten minutes, but only
-if it has been up long enough that this is not a loop:
+Reboot the gateway when the internet has been down for ten minutes, but only if it has been up long enough that this is not a loop:
 
 ```yaml
 automation:
@@ -188,8 +125,7 @@ automation:
           entity_id: button.at_t_gateway_reboot
 ```
 
-Reboot every Sunday at 04:00 with the action instead of the built-in schedule,
-for people who want it alongside other steps:
+Reboot every Sunday at 04:00 with the action instead of the built-in schedule, for people who want it alongside other steps:
 
 ```yaml
 automation:
@@ -222,20 +158,11 @@ automation:
 
 ## Known limitations
 
-- The integration reboots the gateway and reads its uptime and broadband
-  statistics. The gateway's other pages (NAT tables, per-port LAN counters,
-  fibre diagnostics) are out of scope: this is for fixing and watching a
-  gateway, not managing one.
-- The gateway drops the connection as it restarts, and the integration treats
-  that as success. Uptime resetting is the confirmation; if it does not reset,
-  the gateway did not restart.
-- One gateway per Home Assistant instance. Reconfigure moves the entry to a
-  new address; see Reconfiguring.
-- The parser is built against BGW320-500 firmware 6.35.8. Other models render
-  the same pages with small differences; a field the parser does not recognise
-  reads unknown rather than a wrong number.
-- No discovery: the gateway offers no SSDP, no UPnP and no mDNS, and it is a
-  DHCP server rather than a DHCP client. Add it by address; see Discovery.
+- The integration reboots the gateway and reads its uptime and broadband statistics. The gateway's other pages (NAT tables, per-port LAN counters, fibre diagnostics) are out of scope: this is for fixing and watching a gateway, not managing one.
+- The gateway drops the connection as it restarts, and the integration treats that as success. Uptime resetting is the confirmation; if it does not reset, the gateway did not restart.
+- One gateway per Home Assistant instance. Reconfigure moves the entry to a new address; see Reconfiguring.
+- The parser is built against BGW320-500 firmware 6.35.8. Other models render the same pages with small differences; a field the parser does not recognise reads unknown rather than a wrong number.
+- No discovery: the gateway offers no SSDP, no UPnP and no mDNS, and it is a DHCP server rather than a DHCP client. Add it by address; see Discovery.
 
 ## Troubleshooting
 
@@ -260,48 +187,20 @@ logger:
     custom_components.att_router_reboot: debug
 ```
 
-Download diagnostics from the device page for a report with the access code,
-host, serial, MAC and public IP address redacted.
+Download diagnostics from the device page for a report with the access code, host, serial, MAC and public IP address redacted.
 
 ## Development
 
-- `parse.py`, `models.py` and `api.py` have no Home Assistant import, so
-  `tests/test_parse.py` and `tests/test_api.py` run on a bare interpreter
-  against saved real HTML (`tests/fixtures/`, with the household's WAN IP, MAC
-  and serial replaced by documentation placeholders) and against aiohttp's
-  real cookie jar.
-- The Home Assistant layer is under `tests/ha/` and runs in the GitHub Tests
-  workflow on every push, alongside `mypy --strict` with Home Assistant
-  installed, hassfest and the HACS action.
-- Coverage is measured over both suites into one file (the pure suite with
-  `--cov`, then `tests/ha` with `--cov-append`) and the run fails below 95%.
-  Measuring only the Home Assistant suite understates it, because those tests
-  mock the client the pure suite exercises.
-- `pyproject.toml` loads `tests/winposix.py` with `-p tests.winposix`, which
-  runs the suite on a Windows workstation. Every function in it returns
-  immediately off Windows, so Linux and CI read the same suite.
-- `python tools/validate_local.py` runs the offline checks (manifest,
-  translations, actions, icons, exception keys, the quality scale against the
-  pinned rule list) before a push. It also fails on a development host named
-  anywhere in the published tree, not only in `manifest.json`;
-  `tools/_netblocks.py` pins the address space it refuses, and
-  `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well. A run
-  without that variable checks addresses and URLs only and says so. The scan
-  reads every file `git ls-files` reports except `tools/_netblocks.py` and the
-  ones whose bytes do not decode as text, so extension is not what decides
-  membership. The address matcher is fired on a control line first, and the
-  name matcher too when names were given, so a clean result means the scan
-  matched something.
+- `parse.py`, `models.py` and `api.py` have no Home Assistant import, so `tests/test_parse.py` and `tests/test_api.py` run on a bare interpreter against saved real HTML (`tests/fixtures/`, with the household's WAN IP, MAC and serial replaced by documentation placeholders) and against aiohttp's real cookie jar.
+- The Home Assistant layer is under `tests/ha/` and runs in the GitHub Tests workflow on every push, alongside `mypy --strict` with Home Assistant installed, hassfest and the HACS action.
+- Coverage is measured over both suites into one file (the pure suite with `--cov`, then `tests/ha` with `--cov-append`) and the run fails below 95%. Measuring only the Home Assistant suite understates it, because those tests mock the client the pure suite exercises.
+- `pyproject.toml` loads `tests/winposix.py` with `-p tests.winposix`, which runs the suite on a Windows workstation. Every function in it returns immediately off Windows, so Linux and CI read the same suite.
+- `python tools/validate_local.py` runs the offline checks (manifest, translations, actions, icons, exception keys, the quality scale against the pinned rule list) before a push. It also fails on a development host named anywhere in the published tree, not only in `manifest.json`; `tools/_netblocks.py` pins the address space it refuses, and `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well. A run without that variable checks addresses and URLs only and says so. The scan reads every file `git ls-files` reports except `tools/_netblocks.py` and the ones whose bytes do not decode as text, so extension is not what decides membership. The address matcher is fired on a control line first, and the name matcher too when names were given, so a clean result means the scan matched something.
 - `python tools/make_brand.py` regenerates the brand images.
 
 ## Quality scale
 
-Built to Home Assistant's Integration Quality Scale, rule by rule, in
-`custom_components/att_router_reboot/quality_scale.yaml`. Every rule is
-listed; no rule is `todo`. `discovery` and `discovery-update-info` are `exempt`
-on the measurement under Discovery - the rule allows it for a device that
-cannot be discovered. The badge itself is only awarded to core integrations, so
-the manifest claims no tier.
+Built to Home Assistant's Integration Quality Scale, rule by rule, in `custom_components/att_router_reboot/quality_scale.yaml`. Every rule is listed; no rule is `todo`. `discovery` and `discovery-update-info` are `exempt` on the measurement under Discovery - the rule allows it for a device that cannot be discovered. The badge itself is only awarded to core integrations, so the manifest claims no tier.
 
 `CHANGELOG.md` records what changed in each version.
 
@@ -309,5 +208,4 @@ the manifest claims no tier.
 
 MIT. Copyright (c) 2026 Lewis Heidrick. Full text in [LICENSE](LICENSE).
 
-The captured gateway page at `tests/fixtures/restart_login.html` keeps its
-vendor's BSD-licensed md5.js. [NOTICE](NOTICE) names it.
+The captured gateway page at `tests/fixtures/restart_login.html` keeps its vendor's BSD-licensed md5.js. [NOTICE](NOTICE) names it.
