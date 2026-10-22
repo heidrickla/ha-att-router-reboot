@@ -5,6 +5,7 @@ from __future__ import annotations
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN, SERVICE_REBOOT
 from .coordinator import AttRouterConfigEntry
@@ -30,4 +31,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def _reboot(call: ServiceCall) -> None:
         await _entry().runtime_data.async_reboot()
 
-    hass.services.async_register(DOMAIN, SERVICE_REBOOT, _reboot, schema=REBOOT_SCHEMA)
+    # A reboot takes the household offline and uses the stored access code, so
+    # only an administrator may call it. A call with no user (an automation or
+    # a script) passes.
+    async_register_admin_service(
+        hass, DOMAIN, SERVICE_REBOOT, _reboot, schema=REBOOT_SCHEMA
+    )

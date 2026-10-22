@@ -7,10 +7,12 @@ import pytest
 from aiohttp import CookieJar
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
+from homeassistant.core import Context
 from homeassistant.exceptions import (
     ConfigEntryNotReady,
     HomeAssistantError,
     ServiceValidationError,
+    Unauthorized,
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
@@ -173,6 +175,84 @@ async def test_the_reboot_action_is_registered_and_works(hass, config_entry, gat
     assert hass.services.has_service(DOMAIN, SERVICE_REBOOT)
     with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
         await hass.services.async_call(DOMAIN, SERVICE_REBOOT, {}, blocking=True)
+    reboot.assert_awaited_once()
+
+
+async def _household_member(hass):
+    """A signed-in user in the ordinary users group, as a household account is.
+
+    The first person account is the owner, and the owner is an administrator.
+    """
+    if not any(u.is_owner for u in await hass.auth.async_get_users()):
+        await hass.auth.async_create_user("Owner")
+    user = await hass.auth.async_create_user("Household", group_ids=["system-users"])
+    assert not user.is_admin
+    return user
+
+
+async def _administrator(hass):
+    user = await hass.auth.async_create_user("Admin", group_ids=["system-admin"])
+    assert user.is_admin
+    return user
+
+
+async def test_the_action_is_refused_to_a_user_who_is_not_an_administrator(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    member = await _household_member(hass)
+    with patch(REBOOT, AsyncMock()) as reboot, pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REBOOT,
+            {},
+            blocking=True,
+            context=Context(user_id=member.id),
+        )
+    reboot.assert_not_awaited()
+
+
+async def test_the_action_runs_for_an_administrator(hass, config_entry, gateway):
+    await _setup(hass, config_entry, gateway)
+    admin = await _administrator(hass)
+    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REBOOT,
+            {},
+            blocking=True,
+            context=Context(user_id=admin.id),
+        )
+    reboot.assert_awaited_once()
+
+
+async def test_a_press_by_a_user_who_is_not_an_administrator_is_refused(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    member = await _household_member(hass)
+    with patch(REBOOT, AsyncMock()) as reboot, pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": BUTTON},
+            blocking=True,
+            context=Context(user_id=member.id),
+        )
+    reboot.assert_not_awaited()
+
+
+async def test_a_press_by_an_administrator_reboots(hass, config_entry, gateway):
+    await _setup(hass, config_entry, gateway)
+    admin = await _administrator(hass)
+    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": BUTTON},
+            blocking=True,
+            context=Context(user_id=admin.id),
+        )
     reboot.assert_awaited_once()
 
 

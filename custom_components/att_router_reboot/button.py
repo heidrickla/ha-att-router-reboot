@@ -6,6 +6,7 @@ from typing import override
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import AttRouterConfigEntry, AttRouterCoordinator
@@ -35,6 +36,16 @@ class AttRouterRebootButton(AttRouterEntity, ButtonEntity):
 
     @override
     async def async_press(self) -> None:
+        await self._async_require_admin()
         # Raises a translated HomeAssistantError and starts reauth on a
         # rejected code; see the coordinator.
         await self.coordinator.async_reboot()
+
+    async def _async_require_admin(self) -> None:
+        """Refuse a press by a signed-in user who is not an administrator."""
+        context = self._context
+        if context is None or context.user_id is None:
+            return
+        user = await self.hass.auth.async_get_user(context.user_id)
+        if user is None or not user.is_admin:
+            raise Unauthorized(context=context)

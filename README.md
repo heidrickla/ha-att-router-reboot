@@ -29,6 +29,8 @@ Reboot and Internet connection are the dashboard entities. Everything else is di
 
 The action is registered when Home Assistant starts, so an automation that calls it while the integration is not loaded gets a clear "not loaded" error rather than an unknown-action error.
 
+The action and the Reboot button are for administrators. A signed-in user who is not an administrator gets an authorization error and nothing is sent to the gateway. Automations, scripts and the built-in schedule run without a user and are unaffected.
+
 ## Supported devices
 
 | Gateway | Firmware | Notes |

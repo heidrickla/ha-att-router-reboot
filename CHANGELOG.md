@@ -4,6 +4,12 @@ All notable changes to this integration are recorded here, newest first. The for
 
 The newest version below is the version in `manifest.json` and in `const.VERSION`. HACS installs the tagged release rather than the default branch.
 
+## [Unreleased]
+
+### Changed
+
+- The `att_router_reboot.reboot` action registers as an administrator action, and the Reboot button refuses a press by a signed-in user who is not an administrator. Automations, scripts and the built-in schedule are unaffected.
+
 ## [0.3.0] - 2026-09-29
 
 ### Changed
