@@ -9,6 +9,7 @@ The newest version below is the version in `manifest.json` and in `const.VERSION
 ### Changed
 
 - The `att_router_reboot.reboot` action registers as an administrator action, and the Reboot button refuses a press by a signed-in user who is not an administrator. Automations, scripts and the built-in schedule are unaffected.
+- The GitHub workflow pins every action to a commit and grants the job token no permissions.
 
 ## [0.3.0] - 2026-09-29
 
