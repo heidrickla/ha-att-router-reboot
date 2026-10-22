@@ -4,7 +4,7 @@ All notable changes to this integration are recorded here, newest first. The for
 
 The newest version below is the version in `manifest.json` and in `const.VERSION`. HACS installs the tagged release rather than the default branch.
 
-## [Unreleased]
+## [0.3.1] - 2026-10-22
 
 ### Changed
 
