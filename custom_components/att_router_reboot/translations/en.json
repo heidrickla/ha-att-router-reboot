@@ -3,16 +3,52 @@
     "step": {
       "user": {
         "title": "AT&T Gateway",
-        "description": "Connect to your AT&T residential gateway on the local network.",
+        "description": "Enter the device access code printed on the label on the gateway. Home Assistant logs in with it before anything is saved.",
+        "data": {
+          "access_code": "Device access code"
+        },
+        "data_description": {
+          "access_code": "The device access code on the gateway's label, used to log in to its web interface. It is not the Wi-Fi password."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "description": "Change these only if the gateway is not at AT&T's default address or you installed your own certificate on it.",
+            "data": {
+              "host": "Host",
+              "verify_ssl": "Verify the gateway's certificate"
+            },
+            "data_description": {
+              "host": "The gateway's LAN address. AT&T gateways use 192.168.1.254 unless it was changed.",
+              "verify_ssl": "Leave off unless you have installed your own trusted certificate on the gateway; it ships a self-signed one."
+            }
+          }
+        }
+      },
+      "unreachable": {
+        "title": "Home Assistant cannot reach the gateway",
+        "description": "The gateway did not answer at {host}. Check these, then press Submit to try again with the same access code:\n\n- The gateway is on and its web page opens at {url} from a device on the same network as Home Assistant.\n- On a network split into segments or VLANs, Home Assistant can route to the gateway's LAN address.\n- The address below is the gateway's. AT&T gateways use {default_host} unless it was changed.\n- Verify the gateway's certificate is off, unless you installed your own certificate on it.",
         "data": {
           "host": "Host",
-          "access_code": "Device access code",
           "verify_ssl": "Verify the gateway's certificate"
         },
         "data_description": {
-          "host": "The gateway's LAN address. Usually 192.168.1.254.",
-          "access_code": "The device access code printed on the label on the gateway, used to log in to its web interface.",
+          "host": "The gateway's LAN address. AT&T gateways use 192.168.1.254 unless it was changed.",
           "verify_ssl": "Leave off unless you have installed your own trusted certificate on the gateway; it ships a self-signed one."
+        }
+      },
+      "schedule": {
+        "title": "Automatic reboot schedule",
+        "description": "The schedule is off, so the gateway reboots only when you press Reboot or an automation calls the action. Press Submit to finish, or choose a schedule now. You can change it later under Configure. A scheduled reboot is skipped if the gateway has only just come up.",
+        "data": {
+          "schedule": "Schedule",
+          "schedule_time": "Time of day",
+          "schedule_weekday": "Day of week"
+        },
+        "data_description": {
+          "schedule": "How often to reboot automatically. Off leaves rebooting entirely to the button, the action, or your own automations.",
+          "schedule_time": "Local time at which the reboot runs.",
+          "schedule_weekday": "Used only for a weekly schedule."
         }
       },
       "reconfigure": {
@@ -43,7 +79,8 @@
     "error": {
       "invalid_auth": "The access code was rejected.",
       "cannot_connect": "Could not reach the gateway at that address.",
-      "unknown": "Unexpected error talking to the gateway."
+      "unknown": "Unexpected error talking to the gateway.",
+      "still_cannot_connect": "The gateway still did not answer. Check the points above, then press Submit again."
     },
     "abort": {
       "already_configured": "This gateway is already configured.",

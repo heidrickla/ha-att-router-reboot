@@ -1,9 +1,8 @@
 """Client for the AT&T BGW-series residential gateway web interface.
 
-Everything here is reverse-engineered from a BGW320-500 on firmware 6.35.8 and
-kept deliberately small: read the uptime (no login), and reboot (login, then
-replay the device's own restart form). No third-party dependency - aiohttp,
-hashlib and the standard library cover it.
+Built against a BGW320-500 on firmware 6.35.8 and kept small: read the uptime
+(no login), and reboot (login, then replay the device's own restart form). No
+third-party dependency - aiohttp, hashlib and the standard library cover it.
 
 - The reboot REPLAYS the device's form. After logging in, the client fetches
   restart.ha, reads its action, every hidden input and the submit button, and

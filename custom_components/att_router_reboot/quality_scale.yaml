@@ -22,8 +22,11 @@ rules:
   config-flow-test-coverage:
     status: done
     comment: |
-      tests/ha/test_config_flow.py covers the user step, each of the three
-      errors followed by recovery to CREATE_ENTRY, the single-instance abort,
+      tests/ha/test_config_flow.py covers the user step (the access code alone
+      with the Advanced defaults, each error reopening Advanced and then
+      recovering to CREATE_ENTRY), the unreachable step (check again, a new
+      address, a refused code back to the first screen), the schedule step,
+      the single-instance abort,
       reconfigure (success, blank code keeps the stored one, each error then
       recovery, another gateway refused, no stored code on the form), reauth
       (success, each error then recovery) and the options flow. Run by the

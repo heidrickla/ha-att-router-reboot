@@ -1,4 +1,10 @@
-"""Config flow for AT&T Router Reboot."""
+"""Config flow for AT&T Router Reboot.
+
+The first screen asks only for the access code on the gateway's label; the
+address and the certificate check default to AT&T's and wait in a collapsed
+section. A gateway that cannot be reached gets a step that says how to fix it
+and checks again, and the last step offers the reboot schedule, off.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +21,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
@@ -26,6 +33,7 @@ from .api import (
 )
 from .const import (
     CONF_ACCESS_CODE,
+    CONF_ADVANCED,
     CONF_SCHEDULE,
     CONF_SCHEDULE_TIME,
     CONF_SCHEDULE_WEEKDAY,
@@ -49,7 +57,7 @@ _ACCESS_CODE = selector.TextSelector(
 )
 
 
-async def _validate(hass: HomeAssistant, data: dict[str, Any]) -> str:
+async def _validate(hass: HomeAssistant, data: Mapping[str, Any]) -> str:
     """Log in against the real gateway and return its identity; raises on failure.
 
     The same session shape __init__.py uses - own jar, unsafe for the IP host -
@@ -81,21 +89,11 @@ def _title(host: str) -> str:
     return f"AT&T Gateway ({host})"
 
 
-def _user_schema(defaults: Mapping[str, Any], *, code_required: bool) -> vol.Schema:
-    """The setup and reconfigure form.
-
-    The access code is required on setup; on reconfigure it is optional and a
-    blank keeps the stored one, so the stored code never has to be shown.
-    """
-    code_key = (
-        vol.Required(CONF_ACCESS_CODE)
-        if code_required
-        else vol.Optional(CONF_ACCESS_CODE)
-    )
+def _connection_schema(defaults: Mapping[str, Any]) -> vol.Schema:
+    """Host and certificate check, each with a default a new user can keep."""
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, DEFAULT_HOST)): str,
-            code_key: _ACCESS_CODE,
             vol.Required(
                 CONF_VERIFY_SSL,
                 default=defaults.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
@@ -104,13 +102,73 @@ def _user_schema(defaults: Mapping[str, Any], *, code_required: bool) -> vol.Sch
     )
 
 
+def _reconfigure_schema(defaults: Mapping[str, Any]) -> vol.Schema:
+    """Every connection field in one form; a blank access code keeps the stored one."""
+    return vol.Schema(
+        {
+            vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, DEFAULT_HOST)): str,
+            vol.Optional(CONF_ACCESS_CODE): _ACCESS_CODE,
+            vol.Required(
+                CONF_VERIFY_SSL,
+                default=defaults.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+            ): bool,
+        }
+    )
+
+
+def _schedule_schema(current: Mapping[str, Any]) -> vol.Schema:
+    """The reboot schedule, shared by the last setup step and the options flow."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_SCHEDULE,
+                default=current.get(CONF_SCHEDULE, DEFAULT_SCHEDULE),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=SCHEDULES,
+                    translation_key="schedule",
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Optional(
+                CONF_SCHEDULE_TIME,
+                default=current.get(CONF_SCHEDULE_TIME, DEFAULT_SCHEDULE_TIME),
+            ): selector.TimeSelector(),
+            vol.Optional(
+                CONF_SCHEDULE_WEEKDAY,
+                default=current.get(CONF_SCHEDULE_WEEKDAY, DEFAULT_SCHEDULE_WEEKDAY),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=WEEKDAYS,
+                    translation_key="weekday",
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+        }
+    )
+
+
+def _schedule_options(user_input: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop the fields the chosen schedule does not use."""
+    cleaned = dict(user_input)
+    if cleaned.get(CONF_SCHEDULE) != SCHEDULE_WEEKLY:
+        cleaned.pop(CONF_SCHEDULE_WEEKDAY, None)
+    if cleaned.get(CONF_SCHEDULE) == SCHEDULE_OFF:
+        cleaned.pop(CONF_SCHEDULE_TIME, None)
+    return cleaned
+
+
 class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle setup, reconfigure and reauth for the gateway."""
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        # Held on the server between steps, so the typed code never goes back out.
+        self._data: dict[str, Any] = {}
+
     async def _async_try(
-        self, data: dict[str, Any]
+        self, data: Mapping[str, Any]
     ) -> tuple[str | None, dict[str, str]]:
         """The gateway's identity, or the form error to show."""
         try:
@@ -122,26 +180,90 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
         except AttRouterError:
             return None, {"base": "unknown"}
 
+    async def _async_found(self, identity: str) -> ConfigFlowResult:
+        await self.async_set_unique_id(identity)
+        self._abort_if_unique_id_configured()
+        return await self.async_step_schedule()
+
+    def _user_form(self, errors: dict[str, str]) -> ConfigFlowResult:
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_ACCESS_CODE): _ACCESS_CODE,
+                vol.Required(CONF_ADVANCED, default={}): section(
+                    _connection_schema({}), {"collapsed": not errors}
+                ),
+            }
+        )
+        if self._data:
+            # What was typed comes back, except the code.
+            connection = {k: self._data[k] for k in (CONF_HOST, CONF_VERIFY_SSL)}
+            schema = self.add_suggested_values_to_schema(
+                schema, {CONF_ADVANCED: connection}
+            )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        if user_input is None:
+            return self._user_form({})
+        advanced = dict(user_input.get(CONF_ADVANCED) or {})
+        self._data = {
+            CONF_HOST: str(advanced.get(CONF_HOST) or DEFAULT_HOST).strip(),
+            CONF_ACCESS_CODE: user_input[CONF_ACCESS_CODE],
+            CONF_VERIFY_SSL: bool(advanced.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)),
+        }
+        identity, errors = await self._async_try(self._data)
+        if identity is not None:
+            return await self._async_found(identity)
+        if errors == {"base": "cannot_connect"}:
+            return await self.async_step_unreachable()
+        return self._user_form(errors)
+
+    async def async_step_unreachable(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The gateway did not answer; say how to fix it and check again on Submit.
+
+        The typed code is kept, so Submit alone retries.
+        """
         errors: dict[str, str] = {}
         if user_input is not None:
-            identity, errors = await self._async_try(user_input)
+            self._data[CONF_HOST] = str(
+                user_input.get(CONF_HOST) or DEFAULT_HOST
+            ).strip()
+            self._data[CONF_VERIFY_SSL] = bool(user_input.get(CONF_VERIFY_SSL))
+            identity, errors = await self._async_try(self._data)
             if identity is not None:
-                await self.async_set_unique_id(identity)
-                self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=_title(user_input[CONF_HOST]), data=user_input
-                )
-        # On an error the form comes back with the host and the checkbox as
-        # typed; the access code is dropped so it is never sent back out.
-        shown = {k: v for k, v in (user_input or {}).items() if k != CONF_ACCESS_CODE}
+                return await self._async_found(identity)
+            if errors == {"base": "invalid_auth"}:
+                return self._user_form(errors)
+            if errors == {"base": "cannot_connect"}:
+                errors = {"base": "still_cannot_connect"}
         return self.async_show_form(
-            step_id="user",
-            data_schema=_user_schema(shown, code_required=True),
+            step_id="unreachable",
+            data_schema=_connection_schema(self._data),
+            description_placeholders={
+                "host": self._data[CONF_HOST],
+                "url": f"https://{self._data[CONF_HOST]}/",
+                "default_host": DEFAULT_HOST,
+            },
             errors=errors,
+        )
+
+    async def async_step_schedule(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The reboot schedule, off already, so Submit finishes the setup."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=_title(self._data[CONF_HOST]),
+                data=self._data,
+                options=_schedule_options(user_input),
+            )
+        return self.async_show_form(
+            step_id="schedule", data_schema=_schedule_schema({})
         )
 
     async def async_step_reconfigure(
@@ -178,7 +300,7 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
-                _user_schema(shown, code_required=False), shown
+                _reconfigure_schema(shown), shown
             ),
             errors=errors,
         )
@@ -219,44 +341,7 @@ class AttRouterOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         if user_input is not None:
-            cleaned = dict(user_input)
-            if cleaned.get(CONF_SCHEDULE) != SCHEDULE_WEEKLY:
-                cleaned.pop(CONF_SCHEDULE_WEEKDAY, None)
-            if cleaned.get(CONF_SCHEDULE) == SCHEDULE_OFF:
-                cleaned.pop(CONF_SCHEDULE_TIME, None)
-            return self.async_create_entry(data=cleaned)
-
-        options = self.config_entry.options
+            return self.async_create_entry(data=_schedule_options(user_input))
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_SCHEDULE,
-                        default=options.get(CONF_SCHEDULE, DEFAULT_SCHEDULE),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=SCHEDULES,
-                            translation_key="schedule",
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional(
-                        CONF_SCHEDULE_TIME,
-                        default=options.get(CONF_SCHEDULE_TIME, DEFAULT_SCHEDULE_TIME),
-                    ): selector.TimeSelector(),
-                    vol.Optional(
-                        CONF_SCHEDULE_WEEKDAY,
-                        default=options.get(
-                            CONF_SCHEDULE_WEEKDAY, DEFAULT_SCHEDULE_WEEKDAY
-                        ),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=WEEKDAYS,
-                            translation_key="weekday",
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                }
-            ),
+            step_id="init", data_schema=_schedule_schema(self.config_entry.options)
         )

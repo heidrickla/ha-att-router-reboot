@@ -215,13 +215,7 @@ PRIVATE_SUFFIXES = _netblocks.PRIVATE_SUFFIXES
 # Hosts that look like a development host and are not one. Every entry is
 # load-bearing in this repository and carries the reason on its line; an
 # entry added without one is how the rule stops working.
-ALLOWED_HOSTS = frozenset(
-    {
-        # The default Home Assistant address, in every installation document.
-        "homeassistant.local",
-    }
-    | REPO_ALLOWED_HOSTS
-)
+ALLOWED_HOSTS = REPO_ALLOWED_HOSTS
 
 # Text that ships to whoever clones or installs the repository. The file list
 # comes from git rather than a walk: git already knows what is ignored, which
@@ -497,7 +491,8 @@ def scan_published_tree() -> None:
 def main() -> int:
     manifest = read_json(COMP, "manifest.json")
     const_src = read(COMP, "const.py")
-    strings = read_json(COMP, "strings.json")
+    # The Marketplace ships translations/en.json alone; hassfest validates it.
+    strings = read_json(COMP, "translations", "en.json")
 
     # ---------------------------------------------------------- manifest
     for key in REQUIRED_MANIFEST:
@@ -602,10 +597,30 @@ def main() -> int:
             notes.append("Pillow not installed - brand image sizes not checked")
 
     # ---------------------------------------------------------- translations
-    en = read_json(COMP, "translations", "en.json")
     check(
-        strings == en,
-        "strings.json and translations/en.json differ - copy strings.json over",
+        not os.path.exists(os.path.join(COMP, "strings.json")),
+        "strings.json is present - translations/en.json is the one source",
+    )
+    check(
+        "[%key:" not in read(COMP, "translations", "en.json"),
+        "translations/en.json holds a [%key:...] reference, which ships as "
+        "literal text",
+    )
+    # Every step and error the config flow shows has its text.
+    flow_src = read(COMP, "config_flow.py")
+    step_text = set(strings.get("config", {}).get("step", {})) | set(
+        strings.get("options", {}).get("step", {})
+    )
+    shown_steps = set(re.findall(r'step_id="([^"]+)"', flow_src))
+    check(
+        shown_steps <= step_text,
+        f"config flow steps without text {sorted(shown_steps - step_text)}",
+    )
+    error_text = set(strings.get("config", {}).get("error", {}))
+    shown_errors = set(re.findall(r'"base": "([^"]+)"', flow_src))
+    check(
+        shown_errors <= error_text,
+        f"config flow errors without text {sorted(shown_errors - error_text)}",
     )
 
     # ---------------------------------------------------------- actions
@@ -615,7 +630,7 @@ def main() -> int:
     declared_services = set(strings.get("services", {}))
     check(
         declared_services == service_consts,
-        f"strings.json describes {sorted(declared_services)} but const.py "
+        f"translations/en.json describes {sorted(declared_services)} but const.py "
         f"registers {sorted(service_consts)}",
     )
     try:
@@ -633,7 +648,7 @@ def main() -> int:
             check(
                 yaml_fields == described,
                 f"action {name}: services.yaml fields {sorted(yaml_fields)} != "
-                f"strings.json fields {sorted(described)}",
+                f"translations/en.json fields {sorted(described)}",
             )
             for field_spec in (spec or {}).get("fields", {}).values():
                 selector = (field_spec or {}).get("selector", {})
@@ -641,7 +656,8 @@ def main() -> int:
                 if tkey:
                     check(
                         tkey in strings.get("selector", {}),
-                        f"selector translation {tkey!r} missing from strings.json",
+                        f"selector translation {tkey!r} missing from "
+                        "translations/en.json",
                     )
     except ImportError:
         check(
@@ -798,7 +814,8 @@ def main() -> int:
     )
     check(
         declared_exc <= raised,
-        f"strings.json declares unused exceptions {sorted(declared_exc - raised)}",
+        "translations/en.json declares unused exceptions "
+        f"{sorted(declared_exc - raised)}",
     )
 
     # ----------------------------------------------------- issue translations
@@ -806,7 +823,7 @@ def main() -> int:
     declared_issues = set(strings.get("issues", {}))
     check(
         issue_consts == declared_issues,
-        f"const.py issues {sorted(issue_consts)} != strings.json issues "
+        f"const.py issues {sorted(issue_consts)} != translations/en.json issues "
         f"{sorted(declared_issues)}",
     )
 

@@ -1,6 +1,6 @@
 # AT&T Router Reboot for Home Assistant
 
-Home Assistant custom integration to reboot an AT&T residential gateway on demand or on a schedule, and to watch its uptime and broadband statistics. Built and verified against a BGW320-500 on firmware 6.35.8. Other BGW-series gateways share the same web interface; see Supported devices.
+Home Assistant custom integration to reboot an AT&T residential gateway on demand or on a schedule, and to watch its uptime and broadband statistics. Built against a BGW320-500 on firmware 6.35.8. Other BGW-series gateways share the same web interface; see Supported devices.
 
 Everything talks to the gateway over your local network. No AT&T account, no cloud.
 
@@ -17,7 +17,7 @@ One device, "AT&T Gateway", with these entities. All of the sensors are read fro
 | Downstream data, Upstream data | sensor | IPv4 byte counters, shown in GB. They reset when the gateway reboots. |
 | Receive errors, Transmit errors | sensor | IPv4 error counters. |
 | Reachable | binary sensor | On when the gateway answered the last poll. Stays available while everything else is unavailable, so the fault is visible. |
-| Internet connection | binary sensor | On when the gateway reports its broadband link up. Deliberately separate from Reachable: a gateway can answer perfectly while its upstream is down. |
+| Internet connection | binary sensor | On when the gateway reports its broadband link up. Separate from Reachable: a gateway can answer perfectly while its upstream is down. |
 
 Reboot and Internet connection are the dashboard entities. Everything else is diagnostic: Reachable, Uptime, the WAN address, the line rate and all of the counters.
 
@@ -56,11 +56,21 @@ The gateway must serve its web interface over HTTPS on its LAN address, which ev
 
 ## Installation
 
-1. Copy `custom_components/att_router_reboot` into your Home Assistant `custom_components` directory, or add this repository to HACS as a custom repository and install it from there.
-2. Restart Home Assistant.
-3. Settings -> Devices & services -> Add integration -> "AT&T Router Reboot".
-4. Enter the gateway address and the device access code. The integration logs in before it saves anything, so a wrong code is caught here.
-5. Open the integration's Configure to set an automatic reboot schedule. This step is optional.
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=heidrickla&repository=ha-att-router-reboot&category=integration)
+
+1. Press the button above, then Download in HACS, and restart Home Assistant when it asks.
+2. Press this button to start the setup:
+
+[![Open your Home Assistant instance and start setting up AT&T Router Reboot.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=att_router_reboot)
+
+The setup asks only for the device access code on the gateway's label:
+
+1. AT&T Gateway: type the device access code and press Submit. The integration logs in before it saves anything, so a wrong code is caught here.
+2. Automatic reboot schedule: the schedule is off. Press Submit, or choose Daily or Weekly first.
+
+The Advanced section of the first screen holds the gateway's address (`192.168.1.254`, AT&T's default) and the certificate check (off); the defaults fit a gateway as AT&T ships it. If Home Assistant cannot reach the gateway, the setup says what to check, keeps the access code, and Submit tries again.
+
+Without the buttons: HACS, search for AT&T Router Reboot, download it and restart; then Settings, Devices & services, Add integration, AT&T Router Reboot. Manual install: copy `custom_components/att_router_reboot` into your configuration's `custom_components` folder and restart.
 
 Only one gateway can be added to a Home Assistant instance.
 
@@ -70,15 +80,15 @@ Add the gateway by address. It offers nothing to be discovered by. A BGW320-500 
 
 ### Installation parameters
 
-| Field | Default | What it is |
-|---|---|---|
-| Host | `192.168.1.254` | The gateway's LAN address. |
-| Device access code | none, required | The code on the gateway's label. Stored in the config entry, never logged, redacted from diagnostics. |
-| Verify the gateway's certificate | off | The gateway ships a self-signed certificate on its LAN address, so leave this off unless you have installed your own trusted certificate on it. |
+| Field | Where | Default | What it is |
+|---|---|---|---|
+| Device access code | First screen | none, required | The code on the gateway's label. Stored in the config entry, never logged, redacted from diagnostics. |
+| Host | Advanced | `192.168.1.254` | The gateway's LAN address. |
+| Verify the gateway's certificate | Advanced | off | The gateway ships a self-signed certificate on its LAN address, so leave this off unless you have installed your own trusted certificate on it. |
 
 ### Configuration parameters
 
-Settings -> Devices & services -> AT&T Router Reboot -> Configure.
+The last setup step offers these, and Settings -> Devices & services -> AT&T Router Reboot -> Configure changes them later.
 
 | Option | Default | What it is |
 |---|---|---|
@@ -170,10 +180,10 @@ automation:
 
 | Symptom | Cause |
 |---|---|
-| Setup says "Could not reach the gateway at that address" | Home Assistant cannot route to the gateway, or the address is wrong. Open `https://<address>/` from the Home Assistant host's network; the BGW answers on 443 only. |
-| Setup says "The access code was rejected" | The code is the **Device Access Code** on the gateway's label, not the Wi-Fi password. If you changed it in the gateway's web interface, use the new one. |
+| Setup shows "Home Assistant cannot reach the gateway" | Home Assistant cannot route to the gateway, or the address is wrong. Open `https://<address>/` from the Home Assistant host's network; the BGW answers on 443 only. Correct the address on that step if needed and press Submit. |
+| Setup says "The access code was rejected" | The code is the Device Access Code on the gateway's label, not the Wi-Fi password. If you changed it in the gateway's web interface, use the new one. |
 | Setup says "Unexpected error talking to the gateway" | The gateway answered with a page the integration did not expect; the log has the detail. The usual one is its "please enable cookies" page, meaning the session cookie is not round-tripping. This integration keeps cookies for the gateway's IP address on purpose, so that page means the firmware has changed. Report the log line. |
-| Setup fails with the certificate check on | The gateway's certificate is self-signed. Turn the check off unless you installed your own trusted certificate on the gateway. |
+| Setup cannot reach the gateway with the certificate check on | The gateway's certificate is self-signed. Turn the check off unless you installed your own trusted certificate on the gateway. |
 | Reconfigure says "That address answers as a different gateway" | The gateway at the new address reports a different serial number from the one the entry is keyed on. To switch to that gateway, delete the entry and add it again. |
 | Everything is unavailable except Reachable, which is off | The gateway is not answering. The log has one line saying so and one when it recovers. |
 | Internet connection is off but the sensors update | The gateway is up and its upstream is down. This is the case the Reboot button is for. |
@@ -196,7 +206,6 @@ Download diagnostics from the device page for a report with the access code, hos
 - `parse.py`, `models.py` and `api.py` have no Home Assistant import, so `tests/test_parse.py` and `tests/test_api.py` run on a bare interpreter against saved real HTML (`tests/fixtures/`, with the household's WAN IP, MAC and serial replaced by documentation placeholders) and against aiohttp's real cookie jar.
 - The Home Assistant layer is under `tests/ha/` and runs in the GitHub Tests workflow on every push, alongside `mypy --strict` with Home Assistant installed, hassfest and the HACS action.
 - Coverage is measured over both suites into one file (the pure suite with `--cov`, then `tests/ha` with `--cov-append`) and the run fails below 95%. Measuring only the Home Assistant suite understates it, because those tests mock the client the pure suite exercises.
-- `pyproject.toml` loads `tests/winposix.py` with `-p tests.winposix`, which runs the suite on a Windows workstation. Every function in it returns immediately off Windows, so Linux and CI read the same suite.
 - `python tools/validate_local.py` runs the offline checks (manifest, translations, actions, icons, exception keys, the quality scale against the pinned rule list) before a push. It also fails on a development host named anywhere in the published tree, not only in `manifest.json`; `tools/_netblocks.py` pins the address space it refuses, and `ATT_ROUTER_DEV_HOSTNAMES` gives it the host names to refuse as well. A run without that variable checks addresses and URLs only and says so. The scan reads every file `git ls-files` reports except `tools/_netblocks.py` and the ones whose bytes do not decode as text, so extension is not what decides membership. The address matcher is fired on a control line first, and the name matcher too when names were given, so a clean result means the scan matched something.
 - `python tools/make_brand.py` regenerates the brand images.
 

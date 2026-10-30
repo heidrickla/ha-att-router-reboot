@@ -1,4 +1,4 @@
-# The action's name and description live in strings.json (the translatable
-# layer); this file carries only structure. The action has no fields: the
+# The action's name and description live in translations/en.json (the
+# translatable layer); this file carries only structure. The action has no fields: the
 # integration allows a single entry, so there is nothing to target.
 reboot:

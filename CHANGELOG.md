@@ -4,6 +4,20 @@ All notable changes to this integration are recorded here, newest first. The for
 
 The newest version below is the version in `manifest.json` and in `const.VERSION`. HACS installs the tagged release rather than the default branch.
 
+## [0.4.0] - 2026-10-30
+
+### Changed
+
+- The first setup screen asks only for the device access code. The gateway's address (`192.168.1.254`) and the certificate check (off) sit in a collapsed Advanced section with their defaults; an error opens it with what was typed, except the code.
+- When Home Assistant cannot reach the gateway, the setup shows what to check, keeps the typed code, and Submit tries again, with the address and certificate check on the same screen.
+- The last setup step offers the automatic reboot schedule, off, so a schedule can be set without a trip to Configure.
+- The integration ships `translations/en.json` alone; `strings.json` is gone and `hacs.json` no longer carries `render_readme`.
+- The README opens the repository in HACS and starts the setup with My Home Assistant buttons, and installs from the HACS default store instead of a custom repository.
+
+### Removed
+
+- `tests/winposix.py`, the Windows stand-ins for the test suite. The tests run on Linux.
+
 ## [0.3.1] - 2026-10-22
 
 ### Changed

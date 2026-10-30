@@ -5,10 +5,12 @@ from datetime import timedelta
 DOMAIN = "att_router_reboot"
 MANUFACTURER = "AT&T"
 # Kept equal to manifest.json's version; tools/validate_local.py checks.
-VERSION = "0.3.1"
+VERSION = "0.4.0"
 
 CONF_ACCESS_CODE = "access_code"
 CONF_VERIFY_SSL = "verify_ssl"
+# The collapsed section of the first setup screen that holds host and certificate.
+CONF_ADVANCED = "advanced"
 
 # The gateway ships a self-signed certificate on its LAN address, so TLS
 # verification is off by default. A user who has installed their own cert can
