@@ -4,6 +4,20 @@ Home Assistant custom integration to reboot an AT&T residential gateway on deman
 
 Everything talks to the gateway over your local network. No AT&T account, no cloud.
 
+## Screenshots
+
+![The AT&T Gateway setup screen asking for the device access code](docs/images/setup.png)
+
+Setup asks only for the device access code; the address and certificate check wait in Advanced.
+
+![The setup screen shown when Home Assistant cannot reach the gateway](docs/images/unreachable.png)
+
+When the gateway does not answer, setup lists what to check and tries again on Submit.
+
+![The AT&T Gateway device page with the reboot button and line counters](docs/images/device.png)
+
+The device page, captured against the test suite's recorded gateway pages.
+
 ## What you get
 
 One device, "AT&T Gateway", with these entities. All of the sensors are read from pages the gateway serves without a login, so they work even before you have entered an access code, and a wrong code never blanks them.
