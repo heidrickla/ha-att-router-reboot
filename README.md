@@ -126,7 +126,7 @@ Settings -> Devices & services -> AT&T Router Reboot -> the three dots -> Delete
 
 ## How it updates
 
-- Statistics are polled every two minutes from `sysinfo.ha` and `broadbandstatistics.ha`, which the gateway serves without authentication. Model, serial, firmware and MAC are read once when the entry loads. If the broadband page cannot be read, the broadband sensors and Internet connection become unavailable, uptime is still updated, and the log says so once. If the uptime page cannot be read, everything but Reachable becomes unavailable and the log says so once.
+- Statistics are polled every two minutes from the gateway's status pages, `sysinfo.ha` and `broadbandstatistics.ha`. Model, serial, firmware and MAC are read once when the entry loads. If the broadband page cannot be read, the broadband sensors and Internet connection become unavailable, uptime is still updated, and the log says so once. If the uptime page cannot be read, everything but Reachable becomes unavailable and the log says so once.
 - Reboot happens only when asked: the button, the action or the schedule. It logs in the way the gateway's own web page does. The access code is hashed (`md5(code + nonce)`) against a per-request nonce, over a session of its own that keeps the gateway's cookie. It then replays the gateway's own restart form rather than posting a hardcoded body. If a firmware update renames a form field, replaying still submits the right thing. A refresh is requested straight after, so Uptime shows the reset within a poll or two of the gateway coming back.
 
 ## Examples
