@@ -30,6 +30,7 @@ from custom_components.att_router_reboot.const import (
 )
 
 from .conftest import ENTRY_DATA, HOST, MAC, SERIAL
+from .frontend_form import frontend_submission
 
 VERIFY = (
     "custom_components.att_router_reboot.api.AttRouterClient.async_verify_access_code"
@@ -134,7 +135,8 @@ async def test_the_access_code_alone_sets_up_the_default_gateway(hass):
     )
     with patch(VERIFY, _record):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_ACCESS_CODE: "secret42"}
+            result["flow_id"],
+            frontend_submission(result, {CONF_ACCESS_CODE: "secret42"}),
         )
     assert seen == {"host": HOST, "code": "secret42"}
     done = await finish(hass, result)

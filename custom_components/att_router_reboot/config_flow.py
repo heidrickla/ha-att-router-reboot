@@ -189,7 +189,9 @@ class AttRouterConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_ACCESS_CODE): _ACCESS_CODE,
-                vol.Required(CONF_ADVANCED, default={}): section(
+                # No default on the section key: the frontend would send that
+                # default as the section's data and skip the defaults inside.
+                vol.Required(CONF_ADVANCED): section(
                     _connection_schema({}), {"collapsed": not errors}
                 ),
             }
