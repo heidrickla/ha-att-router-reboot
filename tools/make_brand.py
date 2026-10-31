@@ -11,9 +11,8 @@ Sizes:
     logo.png       shortest side 128-256
     logo@2x.png    shortest side 256-512
 
-The mark is what the integration does: the gateway, standing as the BGW320
-does, with its status lights, and a restart arrow over it. Transparent
-background so it sits on either theme.
+The icon uses brand/icon-source.png. The wide logo retains the gateway and
+restart arrow.
 
     python tools/make_brand.py
 """
@@ -110,9 +109,19 @@ def main() -> None:
         "logo.png": (512, 256),
         "logo@2x.png": (1024, 512),
     }
+    source = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "brand", "icon-source.png"
+    )
+    with Image.open(source) as original:
+        approved_icon = original.convert("RGBA")
     for name, size in specs.items():
         path = os.path.join(out, name)
-        draw(size, pad_frac=0.06).save(path, "PNG")
+        image = (
+            approved_icon.resize(size, Image.LANCZOS)
+            if name.startswith("icon")
+            else draw(size, pad_frac=0.06)
+        )
+        image.save(path, "PNG")
         print(f"  {name:14s} {size[0]}x{size[1]}")
 
     # Verify against the published rules rather than trusting the call above.
