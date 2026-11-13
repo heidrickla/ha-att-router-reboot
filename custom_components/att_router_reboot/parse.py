@@ -12,11 +12,6 @@ import re
 
 from .models import BroadbandStats
 
-_UPTIME_RE = re.compile(
-    r"Time Since Last Reboot.*?<td[^>]*>\s*(\d+)\s*</td>",
-    re.IGNORECASE | re.DOTALL,
-)
-
 
 def _cells(html: str) -> list[str]:
     """Flatten a page to its non-empty cell texts, in order."""
@@ -50,8 +45,18 @@ def _int_after(cells: list[str], label: str) -> int | None:
 
 
 def parse_uptime(html: str) -> int | None:
-    match = _UPTIME_RE.search(html)
-    return int(match.group(1)) if match else None
+    value = _value_after(_cells(html), "Time Since Last Reboot")
+    if value is None:
+        return None
+    if value.isdecimal():
+        return int(value)
+    match = re.fullmatch(r"(\d+):(\d{2}):(\d{2}):(\d{2})", value)
+    if not match:
+        return None
+    days, hours, minutes, seconds = map(int, match.groups())
+    if hours >= 24 or minutes >= 60 or seconds >= 60:
+        return None
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 def parse_model(html: str) -> dict[str, str]:
