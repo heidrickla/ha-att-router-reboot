@@ -48,6 +48,11 @@ def test_uptime_is_read_as_seconds():
     assert parse.parse_uptime(_fixture("sysinfo.html")) == 1085939
 
 
+def test_uptime_in_days_hours_minutes_seconds():
+    html = _fixture("sysinfo.html").replace("1085939", "01:09:55:37")
+    assert parse.parse_uptime(html) == 122137
+
+
 def test_uptime_is_none_when_the_field_is_absent():
     assert parse.parse_uptime("<html><body>nothing here</body></html>") is None
 
