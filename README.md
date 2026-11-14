@@ -25,7 +25,7 @@ One device, "AT&T Gateway", with these entities. All of the sensors are read fro
 | Entity | Type | What it is |
 |---|---|---|
 | Reboot | button | Logs in to the gateway and submits its own restart form. |
-| Uptime | sensor | Seconds since the gateway last booted. Resets to near zero after a reboot, which is how you can tell one worked. |
+| Uptime | sensor | Seconds since the gateway last booted, whether the gateway reports seconds or `DD:HH:MM:SS`. Resets to near zero after a reboot, which is how you can tell one worked. |
 | WAN IP address | sensor | The public IPv4 address on the broadband side. |
 | Line rate | sensor | The broadband link speed in Mbit/s. |
 | Downstream data, Upstream data | sensor | IPv4 byte counters, shown in GB. They reset when the gateway reboots. |

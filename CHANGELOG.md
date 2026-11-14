@@ -4,6 +4,12 @@ All notable changes to this integration are recorded here, newest first. The for
 
 The newest version below is the version in `manifest.json` and in `const.VERSION`. HACS installs the tagged release rather than the default branch.
 
+## [0.4.1] - 2026-11-13
+
+### Fixed
+
+- The Uptime sensor now reports the correct number of seconds on gateways that show time since reboot as `DD:HH:MM:SS`. Gateways that report seconds directly continue to work.
+
 ## [0.4.0] - 2026-10-30
 
 ### Changed
