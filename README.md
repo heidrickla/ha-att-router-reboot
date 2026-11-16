@@ -51,7 +51,7 @@ The action and the Reboot button are for administrators. A signed-in user who is
 | Gateway | Firmware | Notes |
 |---|---|---|
 | BGW320-500 | 6.35.8 | The parser and the login are built against pages recorded from this unit. |
-| BGW320-505 | any | Same web interface as the BGW320-500. |
+| BGW320-505 | 6.40.4 | Same web interface as the BGW320-500. Reported working on 6.40.4 under Home Assistant 2026.11.1. |
 | BGW210-700 | any | Same web interface family (`sysinfo.ha`, `broadbandstatistics.ha`, `restart.ha`). |
 
 The gateway must serve its web interface over HTTPS on its LAN address, which every BGW does by default. If another model reads differently, open an issue with the debug log.

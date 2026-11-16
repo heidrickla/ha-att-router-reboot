@@ -4,6 +4,16 @@ All notable changes to this integration are recorded here, newest first. The for
 
 The newest version below is the version in `manifest.json` and in `const.VERSION`. HACS installs the tagged release rather than the default branch.
 
+## [0.5.0] - 2026-11-16
+
+### Added
+
+- A diagnostic Firmware sensor shows the gateway's software version, read from the same status page as Uptime, so a firmware update appears in its history next to the reboot it causes. Contributed by Matthew Wolter (PR #2).
+
+### Changed
+
+- The device page's firmware follows the gateway: when the version changes, or the gateway reboots, the device's software version is updated without a Home Assistant restart. A status page that leaves the version out never blanks it.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed
