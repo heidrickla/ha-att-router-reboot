@@ -33,10 +33,22 @@ class BroadbandStats:
 
 
 @dataclass
+class SysInfo:
+    """The system information page, parsed: uptime plus the identity fields."""
+
+    uptime: int
+    # Model, serial, firmware and MAC, as parse_model returns them; a field the
+    # page did not carry is absent.
+    info: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class GatewayData:
     """One poll's worth of gateway state."""
 
     uptime: int
+    # The gateway's software version, or None when the page did not carry it.
+    firmware: str | None = None
     broadband: BroadbandStats = field(default_factory=BroadbandStats)
     # False when the broadband page could not be read on this poll; the
     # broadband entities are then unavailable rather than showing old values.

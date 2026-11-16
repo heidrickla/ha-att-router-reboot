@@ -229,7 +229,11 @@ def test_an_input_without_a_name_is_ignored():
 
 def test_uptime_is_read_from_the_real_page():
     session = _Session(pages=[(200, _fixture("sysinfo.html"))], post_result=(200, ""))
-    assert asyncio.run(_client(session).async_get_uptime()) == 1085939
+    sysinfo = asyncio.run(_client(session).async_get_sysinfo())
+    assert sysinfo.uptime == 1085939
+    # The identity fields come from the same single request.
+    assert sysinfo.info["firmware"] == "6.35.8"
+    assert session.gets == ["https://192.168.1.254/cgi-bin/sysinfo.ha"]
 
 
 def test_a_login_post_rejected_with_a_status_is_an_error():
@@ -259,7 +263,7 @@ def test_transport_failures_on_the_login_post_are_connection_errors():
 def test_a_non_200_page_is_an_error_not_a_connection_error():
     session = _Session(pages=[(500, "boom")], post_result=(200, ""))
     with pytest.raises(api.AttRouterError) as info:
-        asyncio.run(_client(session).async_get_uptime())
+        asyncio.run(_client(session).async_get_sysinfo())
     assert not isinstance(info.value, api.AttRouterConnectionError)
     assert "HTTP 500" in str(info.value)
 
@@ -275,13 +279,13 @@ def test_transport_failures_are_connection_errors():
 
     for session in (_Down([], (200, "")), _Slow([], (200, ""))):
         with pytest.raises(api.AttRouterConnectionError):
-            asyncio.run(_client(session).async_get_uptime())
+            asyncio.run(_client(session).async_get_sysinfo())
 
 
 def test_uptime_is_an_error_when_the_page_has_no_value():
     session = _Session(pages=[(200, "<html>maintenance</html>")], post_result=(200, ""))
     with pytest.raises(api.AttRouterError, match="uptime"):
-        asyncio.run(_client(session).async_get_uptime())
+        asyncio.run(_client(session).async_get_sysinfo())
 
 
 def test_model_and_broadband_are_read_from_the_real_pages():

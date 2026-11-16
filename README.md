@@ -26,6 +26,7 @@ One device, "AT&T Gateway", with these entities. All of the sensors are read fro
 |---|---|---|
 | Reboot | button | Logs in to the gateway and submits its own restart form. |
 | Uptime | sensor | Seconds since the gateway last booted, whether the gateway reports seconds or `DD:HH:MM:SS`. Resets to near zero after a reboot, which is how you can tell one worked. |
+| Firmware | sensor | The gateway's software version, read from the same status page as Uptime. When it changes after an update, the device page's firmware line follows. |
 | WAN IP address | sensor | The public IPv4 address on the broadband side. |
 | Line rate | sensor | The broadband link speed in Mbit/s. |
 | Downstream data, Upstream data | sensor | IPv4 byte counters, shown in GB. They reset when the gateway reboots. |
@@ -33,7 +34,7 @@ One device, "AT&T Gateway", with these entities. All of the sensors are read fro
 | Reachable | binary sensor | On when the gateway answered the last poll. Stays available while everything else is unavailable, so the fault is visible. |
 | Internet connection | binary sensor | On when the gateway reports its broadband link up. Separate from Reachable: a gateway can answer perfectly while its upstream is down. |
 
-Reboot and Internet connection are the dashboard entities. Everything else is diagnostic: Reachable, Uptime, the WAN address, the line rate and all of the counters.
+Reboot and Internet connection are the dashboard entities. Everything else is diagnostic: Reachable, Uptime, Firmware, the WAN address, the line rate and all of the counters.
 
 ### Actions
 
@@ -126,7 +127,7 @@ Settings -> Devices & services -> AT&T Router Reboot -> the three dots -> Delete
 
 ## How it updates
 
-- Statistics are polled every two minutes from the gateway's status pages, `sysinfo.ha` and `broadbandstatistics.ha`. Model, serial, firmware and MAC are read once when the entry loads. If the broadband page cannot be read, the broadband sensors and Internet connection become unavailable, uptime is still updated, and the log says so once. If the uptime page cannot be read, everything but Reachable becomes unavailable and the log says so once.
+- Statistics are polled every two minutes from the gateway's status pages, `sysinfo.ha` and `broadbandstatistics.ha`. Model, serial, firmware and MAC are read when the entry loads; the firmware is read again on every poll, from the same page as uptime, so an update shows without a restart. If the broadband page cannot be read, the broadband sensors and Internet connection become unavailable, uptime is still updated, and the log says so once. If the uptime page cannot be read, everything but Reachable becomes unavailable and the log says so once.
 - Reboot happens only when asked: the button, the action or the schedule. It logs in the way the gateway's own web page does. The access code is hashed (`md5(code + nonce)`) against a per-request nonce, over a session of its own that keeps the gateway's cookie. It then replays the gateway's own restart form rather than posting a hardcoded body. If a firmware update renames a form field, replaying still submits the right thing. A refresh is requested straight after, so Uptime shows the reset within a poll or two of the gateway coming back.
 
 ## Examples

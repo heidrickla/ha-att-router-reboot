@@ -138,6 +138,9 @@
       "uptime": {
         "name": "Uptime"
       },
+      "firmware": {
+        "name": "Firmware"
+      },
       "wan_ip": {
         "name": "WAN IP address"
       },
