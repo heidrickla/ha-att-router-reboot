@@ -21,7 +21,7 @@ from custom_components.att_router_reboot.const import (
     CONF_VERIFY_SSL,
     DOMAIN,
 )
-from custom_components.att_router_reboot.models import BroadbandStats
+from custom_components.att_router_reboot.models import BroadbandStats, SysInfo
 
 HOST = "192.168.1.254"
 FIX = pathlib.Path(__file__).resolve().parent.parent / "fixtures"
@@ -35,13 +35,29 @@ ENTRY_DATA = {
 WAN_IP = "203.0.113.10"
 MAC = "aa:bb:cc:dd:ee:ff"
 SERIAL = "001E46-A1B2C3D4E5F6"
-MODEL_INFO = {"model": "BGW320-500", "serial": SERIAL, "mac": MAC}
+FIRMWARE = "6.35.8"
+MODEL_INFO = {
+    "model": "BGW320-500",
+    "serial": SERIAL,
+    "mac": MAC,
+    "firmware": FIRMWARE,
+}
 
 CLIENT = "custom_components.att_router_reboot.api.AttRouterClient"
-UPTIME = f"{CLIENT}.async_get_uptime"
+SYSINFO = f"{CLIENT}.async_get_sysinfo"
 MODEL = f"{CLIENT}.async_get_model"
 BROADBAND = f"{CLIENT}.async_get_broadband"
 REBOOT = f"{CLIENT}.async_reboot"
+
+
+def sysinfo(uptime: int, firmware: str | None = FIRMWARE) -> SysInfo:
+    """What the system information page yields for one poll."""
+    info = dict(MODEL_INFO)
+    if firmware is None:
+        info.pop("firmware")
+    else:
+        info["firmware"] = firmware
+    return SysInfo(uptime=uptime, info=info)
 
 
 def broadband(up: bool = True) -> BroadbandStats:
@@ -63,11 +79,16 @@ def broadband(up: bool = True) -> BroadbandStats:
 
 @dataclass
 class Gateway:
-    """The client's three read calls, mocked for the life of a test."""
+    """The client's three read calls, mocked for the life of a test.
+
+    `uptime` and `firmware` feed the one system information read; set
+    `firmware` to None to model a page that does not carry it.
+    """
 
     uptime: AsyncMock
     model: AsyncMock
     broadband: AsyncMock
+    firmware: dict[str, str | None]
 
 
 @pytest.fixture(autouse=True)
@@ -84,12 +105,18 @@ def gateway() -> Iterator[Gateway]:
     patch that ends when setup ends leaves the next read to a real socket,
     which the harness blocks. Tests adjust return_value and side_effect here.
     """
+    uptime = AsyncMock(return_value=1000)
+    firmware: dict[str, str | None] = {"value": FIRMWARE}
+
+    async def read_sysinfo(*_: object) -> SysInfo:
+        return sysinfo(await uptime(), firmware["value"])
+
     with (
-        patch(UPTIME, return_value=1000) as uptime,
+        patch(SYSINFO, side_effect=read_sysinfo),
         patch(MODEL, return_value=dict(MODEL_INFO)) as model,
         patch(BROADBAND, return_value=broadband()) as stats,
     ):
-        yield Gateway(uptime=uptime, model=model, broadband=stats)
+        yield Gateway(uptime=uptime, model=model, broadband=stats, firmware=firmware)
 
 
 @pytest.fixture

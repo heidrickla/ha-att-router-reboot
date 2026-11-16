@@ -26,7 +26,7 @@ from typing import override
 
 import aiohttp
 
-from .models import BroadbandStats
+from .models import BroadbandStats, SysInfo
 from .parse import parse_broadband, parse_model, parse_uptime
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,15 +147,19 @@ class AttRouterClient:
         except TimeoutError as err:
             raise AttRouterConnectionError(f"timed out reaching {path}") from err
 
-    async def async_get_uptime(self) -> int:
-        """Seconds since the gateway last rebooted. No login required."""
+    async def async_get_sysinfo(self) -> SysInfo:
+        """Uptime in seconds plus model, serial, firmware and MAC. No login.
+
+        One request: the identity fields ride on the page the uptime already
+        comes from.
+        """
         html = await self._get("/cgi-bin/sysinfo.ha")
         uptime = parse_uptime(html)
         if uptime is None:
             # A reachable gateway that does not render the field is a real
             # problem to surface, not a zero to invent.
             raise AttRouterError("sysinfo.ha did not contain an uptime value")
-        return uptime
+        return SysInfo(uptime=uptime, info=parse_model(html))
 
     async def async_get_model(self) -> dict[str, str]:
         """Model, serial, firmware and MAC from sysinfo.ha, best effort."""

@@ -8,6 +8,7 @@ from typing import override
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -18,7 +19,7 @@ from .api import (
     AttRouterError,
 )
 from .const import DOMAIN, ISSUE_SCHEDULED_REBOOT_FAILED, SCAN_INTERVAL
-from .models import GatewayData
+from .models import GatewayData, SysInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
         self.client = client
         self.model_info: dict[str, str] = {}
         self._broadband_available = True
+        self._last_uptime: int | None = None
 
     @override
     async def _async_setup(self) -> None:
@@ -65,7 +67,7 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
     @override
     async def _async_update_data(self) -> GatewayData:
         try:
-            uptime = await self.client.async_get_uptime()
+            sysinfo = await self.client.async_get_sysinfo()
         except AttRouterConnectionError as err:
             raise UpdateFailed(
                 translation_domain=DOMAIN,
@@ -79,6 +81,10 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
                 translation_placeholders={"error": str(err)},
             ) from err
 
+        self._refresh_device_info(sysinfo)
+        uptime = sysinfo.uptime
+        firmware = sysinfo.info.get("firmware")
+
         # Broadband stats are a bonus, not a reason to fail the whole poll:
         # uptime is what the reboot logic and the schedule guard depend on.
         # Logged once when the page is lost and once when it is back.
@@ -88,11 +94,35 @@ class AttRouterCoordinator(DataUpdateCoordinator[GatewayData]):
             if self._broadband_available:
                 _LOGGER.info("Broadband statistics are unavailable: %s", err)
                 self._broadband_available = False
-            return GatewayData(uptime=uptime, broadband_read=False)
+            return GatewayData(uptime=uptime, firmware=firmware, broadband_read=False)
         if not self._broadband_available:
             _LOGGER.info("Broadband statistics are available again")
             self._broadband_available = True
-        return GatewayData(uptime=uptime, broadband=broadband)
+        return GatewayData(uptime=uptime, firmware=firmware, broadband=broadband)
+
+    def _refresh_device_info(self, sysinfo: SysInfo) -> None:
+        """Keep the device page's firmware current after a gateway update.
+
+        The device keeps the firmware it was given at setup, so a new version,
+        or an uptime that went backwards (the gateway rebooted), writes the
+        page's value to the stored identity and the device registry. The
+        registry write changes nothing when the value is the same, and a page
+        that omits the version never blanks the one on file.
+        """
+        rebooted = self._last_uptime is not None and sysinfo.uptime < self._last_uptime
+        self._last_uptime = sysinfo.uptime
+        firmware = sysinfo.info.get("firmware")
+        if firmware is None:
+            return
+        if not rebooted and firmware == self.model_info.get("firmware"):
+            return
+        self.model_info = {**self.model_info, "firmware": firmware}
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_device(
+            identifiers={(DOMAIN, self.config_entry.entry_id)}
+        )
+        if device is not None:
+            registry.async_update_device(device.id, sw_version=firmware)
 
     async def async_reboot(self) -> None:
         """Reboot the gateway. The one path the button, action and schedule share.

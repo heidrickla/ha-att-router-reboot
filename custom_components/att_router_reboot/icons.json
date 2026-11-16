@@ -1,6 +1,9 @@
 {
   "entity": {
     "sensor": {
+      "firmware": {
+        "default": "mdi:chip"
+      },
       "wan_ip": {
         "default": "mdi:ip-network"
       },

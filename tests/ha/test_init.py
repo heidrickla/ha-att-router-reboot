@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiohttp import CookieJar
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
-from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
+from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Context
 from homeassistant.exceptions import (
     ConfigEntryNotReady,
@@ -14,6 +14,7 @@ from homeassistant.exceptions import (
     ServiceValidationError,
     Unauthorized,
 )
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
@@ -36,14 +37,16 @@ from custom_components.att_router_reboot.models import GatewayData
 from .conftest import (
     BROADBAND,
     ENTRY_DATA,
+    FIRMWARE,
     HOST,
     MAC,
     MODEL,
     REBOOT,
     SERIAL,
-    UPTIME,
+    SYSINFO,
     WAN_IP,
     broadband,
+    sysinfo,
 )
 
 BUTTON = "button.at_t_gateway_reboot"
@@ -51,6 +54,7 @@ UPTIME_SENSOR = "sensor.at_t_gateway_uptime"
 WAN_SENSOR = "binary_sensor.at_t_gateway_internet_connection"
 WAN_IP_SENSOR = "sensor.at_t_gateway_wan_ip_address"
 REACHABLE = "binary_sensor.at_t_gateway_reachable"
+FIRMWARE_SENSOR = "sensor.at_t_gateway_firmware"
 
 
 async def _setup(hass, entry, gateway, uptime=1000, up=True):
@@ -115,7 +119,7 @@ async def test_wan_sensor_follows_the_broadband_state(hass, config_entry, gatewa
 
 async def test_pressing_the_button_reboots(hass, config_entry, gateway):
     await _setup(hass, config_entry, gateway)
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+    with patch(REBOOT, AsyncMock()) as reboot, patch(SYSINFO, return_value=sysinfo(5)):
         await hass.services.async_call(
             "button",
             "press",
@@ -173,7 +177,7 @@ async def test_a_second_rejection_does_not_open_a_second_reauth_flow(
 async def test_the_reboot_action_is_registered_and_works(hass, config_entry, gateway):
     await _setup(hass, config_entry, gateway)
     assert hass.services.has_service(DOMAIN, SERVICE_REBOOT)
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+    with patch(REBOOT, AsyncMock()) as reboot, patch(SYSINFO, return_value=sysinfo(5)):
         await hass.services.async_call(DOMAIN, SERVICE_REBOOT, {}, blocking=True)
     reboot.assert_awaited_once()
 
@@ -215,7 +219,7 @@ async def test_the_action_is_refused_to_a_user_who_is_not_an_administrator(
 async def test_the_action_runs_for_an_administrator(hass, config_entry, gateway):
     await _setup(hass, config_entry, gateway)
     admin = await _administrator(hass)
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+    with patch(REBOOT, AsyncMock()) as reboot, patch(SYSINFO, return_value=sysinfo(5)):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_REBOOT,
@@ -245,7 +249,7 @@ async def test_a_press_by_a_user_who_is_not_an_administrator_is_refused(
 async def test_a_press_by_an_administrator_reboots(hass, config_entry, gateway):
     await _setup(hass, config_entry, gateway)
     admin = await _administrator(hass)
-    with patch(REBOOT, AsyncMock()) as reboot, patch(UPTIME, return_value=5):
+    with patch(REBOOT, AsyncMock()) as reboot, patch(SYSINFO, return_value=sysinfo(5)):
         await hass.services.async_call(
             "button",
             "press",
@@ -278,7 +282,7 @@ async def test_an_unreachable_gateway_retries_with_a_translated_reason(
 ):
     config_entry.add_to_hass(hass)
     with (
-        patch(UPTIME, side_effect=AttRouterConnectionError("down")),
+        patch(SYSINFO, side_effect=AttRouterConnectionError("down")),
         patch(MODEL, return_value={}),
     ):
         await hass.config_entries.async_setup(config_entry.entry_id)
@@ -293,7 +297,7 @@ async def test_an_unreachable_gateway_retries_with_a_translated_reason(
 async def test_an_unreadable_page_at_setup_retries(hass, config_entry):
     config_entry.add_to_hass(hass)
     with (
-        patch(UPTIME, side_effect=AttRouterError("no uptime on the page")),
+        patch(SYSINFO, side_effect=AttRouterError("no uptime on the page")),
         patch(MODEL, return_value={}),
     ):
         await hass.config_entries.async_setup(config_entry.entry_id)
@@ -310,14 +314,14 @@ async def test_losing_the_gateway_marks_entities_unavailable_but_not_reachable(
 ):
     """Reachable stays available so the fault itself is visible."""
     await _setup(hass, config_entry, gateway)
-    with patch(UPTIME, side_effect=AttRouterConnectionError("down")):
+    with patch(SYSINFO, side_effect=AttRouterConnectionError("down")):
         await _poll(hass, config_entry)
     assert hass.states.get(UPTIME_SENSOR).state == STATE_UNAVAILABLE
     assert hass.states.get(WAN_SENSOR).state == STATE_UNAVAILABLE
     assert hass.states.get(REACHABLE).state == "off"
 
     with (
-        patch(UPTIME, return_value=2000),
+        patch(SYSINFO, return_value=sysinfo(2000)),
         patch(BROADBAND, return_value=broadband()),
     ):
         await _poll(hass, config_entry)
@@ -336,7 +340,7 @@ async def test_a_broadband_read_failure_does_not_fail_the_poll(hass, config_entr
     """Uptime is what setup needs; stats are a bonus and must not block it."""
     config_entry.add_to_hass(hass)
     with (
-        patch(UPTIME, return_value=1000),
+        patch(SYSINFO, return_value=sysinfo(1000)),
         patch(MODEL, return_value={}),
         patch(BROADBAND, side_effect=AttRouterError("stats page moved")),
     ):
@@ -402,6 +406,7 @@ async def test_data_payload_shape(hass, config_entry, gateway):
     data = config_entry.runtime_data.data
     assert isinstance(data, GatewayData)
     assert data.uptime == 1000
+    assert data.firmware == FIRMWARE
     assert data.broadband.speed_mbps == 1000
 
 
@@ -429,6 +434,85 @@ async def test_a_model_lookup_failure_does_not_block_setup(hass, config_entry, g
     await _setup(hass, config_entry, gateway)
     assert config_entry.state is ConfigEntryState.LOADED
     assert hass.states.get(UPTIME_SENSOR).state == "1000"
+
+
+def _device_firmware(hass, entry) -> str | None:
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    assert device is not None
+    return device.sw_version
+
+
+async def test_the_firmware_sensor_reports_the_gateways_version(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    assert hass.states.get(FIRMWARE_SENSOR).state == FIRMWARE
+    assert _device_firmware(hass, config_entry) == FIRMWARE
+
+
+async def test_the_firmware_sensor_is_unknown_when_the_page_omits_it(
+    hass, config_entry, gateway
+):
+    gateway.firmware["value"] = None
+    await _setup(hass, config_entry, gateway)
+    assert hass.states.get(FIRMWARE_SENSOR).state == STATE_UNKNOWN
+    assert hass.states.get(UPTIME_SENSOR).state == "1000"
+
+
+async def test_a_firmware_update_reaches_the_sensor_and_the_device_page(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    gateway.firmware["value"] = "6.40.4"
+    gateway.uptime.return_value = 60
+    await _poll(hass, config_entry)
+    assert hass.states.get(FIRMWARE_SENSOR).state == "6.40.4"
+    assert _device_firmware(hass, config_entry) == "6.40.4"
+    assert config_entry.runtime_data.model_info["firmware"] == "6.40.4"
+
+
+async def test_a_firmware_change_without_an_uptime_reset_still_updates_the_device(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    gateway.firmware["value"] = "6.40.4"
+    await _poll(hass, config_entry)
+    assert _device_firmware(hass, config_entry) == "6.40.4"
+
+
+async def test_a_reboot_repairs_a_stale_device_firmware(hass, config_entry, gateway):
+    """The stored value can disagree with the page (for example after the
+    model lookup failed at setup); an uptime reset refreshes the device."""
+    await _setup(hass, config_entry, gateway)
+    registry = dr.async_get(hass)
+    device = registry.async_get_device(identifiers={(DOMAIN, config_entry.entry_id)})
+    registry.async_update_device(device.id, sw_version="stale")
+    # Same firmware, uptime still climbing: nothing to refresh.
+    gateway.uptime.return_value = 2000
+    await _poll(hass, config_entry)
+    assert _device_firmware(hass, config_entry) == "stale"
+    # Uptime resets: the gateway rebooted, so the device is refreshed.
+    gateway.uptime.return_value = 30
+    await _poll(hass, config_entry)
+    assert _device_firmware(hass, config_entry) == FIRMWARE
+
+
+async def test_a_missing_firmware_never_blanks_the_device_page(
+    hass, config_entry, gateway
+):
+    await _setup(hass, config_entry, gateway)
+    gateway.firmware["value"] = None
+    gateway.uptime.return_value = 30
+    await _poll(hass, config_entry)
+    assert _device_firmware(hass, config_entry) == FIRMWARE
+
+
+async def test_firmware_is_learned_when_the_model_lookup_failed_at_setup(
+    hass, config_entry, gateway
+):
+    gateway.model.side_effect = AttRouterError("sysinfo moved")
+    await _setup(hass, config_entry, gateway)
+    assert _device_firmware(hass, config_entry) == FIRMWARE
 
 
 async def test_changing_the_options_reloads_the_entry(hass, config_entry, gateway):

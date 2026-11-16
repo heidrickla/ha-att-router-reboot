@@ -1,4 +1,4 @@
-"""Sensors: uptime, plus the broadband (WAN) statistics.
+"""Sensors: uptime and firmware, plus the broadband (WAN) statistics.
 
 All of these come from pages the gateway serves without a login, so they cost
 nothing beyond the poll that already runs.
@@ -51,6 +51,14 @@ SENSORS: tuple[AttRouterSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=0,
         value_fn=lambda d: d.uptime,
+        from_broadband=False,
+    ),
+    # The gateway's software version, from the same page as uptime.
+    AttRouterSensorDescription(
+        key="firmware",
+        translation_key="firmware",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.firmware,
         from_broadband=False,
     ),
     AttRouterSensorDescription(
