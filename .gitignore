@@ -31,3 +31,4 @@ CONTRIBUTING.md
 config/
 secrets.yaml
 .env
+settings.local.json
