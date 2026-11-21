@@ -234,10 +234,12 @@ DEV_NAMES_ENV = "ATT_ROUTER_DEV_HOSTNAMES"
 IP_LITERAL_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 URL_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s\"'`<>)\]},]+")
 # A host written in prose with no scheme. The suffix must end the name:
-# \b would match the "home" of home-assistant.io.
+# \b would match the "home" of home-assistant.io. A file extension after the
+# suffix makes a file name (settings.local.json, CLAUDE.local.md) and no host.
 BARE_HOST_RE = re.compile(
     r"(?<![\w.-])(?:[a-z0-9][a-z0-9-]*\.)+"
-    r"(?:corp|home|home\.arpa|intranet|internal|lan|local|localdomain)(?![\w-])",
+    r"(?:corp|home|home\.arpa|intranet|internal|lan|local|localdomain)"
+    r"(?![\w-]|\.[a-z])",
     re.IGNORECASE,
 )
 # A host made of anything else is a template - f"http://{host}/" - not a host.
@@ -424,6 +426,10 @@ def scan_controls(names: list[str], name_re: Any) -> None:
         tree_hits(f"control line naming {address}") != [],
         f"the tree scan did not match {address}, an address it refuses, so a "
         "clean scan says nothing about the addresses in the tree",
+    )
+    check(
+        tree_hits("control line naming settings.local.json") == [],
+        "the tree scan matched the file name settings.local.json, which names no host",
     )
     if not names:
         return
